@@ -36,3 +36,6 @@ See initial site here: https://josephiturner.com/med_school_rankings.html
 - 12/26/25 - Hook up frontend to Database with HTTP requests
 - 12/3/25 - Implement Local Storage and loosends
 - 12/8/25 - Present in class
+
+## Getting Started
+- run `npm run dev`
