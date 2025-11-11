@@ -1,5 +1,5 @@
 # Medical School Rankings
-The U.S World and Status Report stopped ranking medical schools in 2022. Because of this, unofficial sites made by med students (e.g Admit.org) have become the go to for medical school rankings. These sites lack credibility however, due to the fact that how the schools are ranked solely on the opinion of the one person who created them. Harvard is rated first on Admit.org for example, due to it having billions in NIH funding, but many may feel that NIH funding per faculty is more important than overall funding. Because of this, we had set out to create **medicalschoolrankings.org**, a crowdsourced, transparent, and customizable medical school ranking platform that reflects the collective priorities of pre-meds, medical stuents, researchers, and physicians.
+The U.S World and Status Report stopped ranking medical schools in 2023. Because of this, unofficial sites made by med students (e.g Admit.org) have become the go to for medical school rankings. Harvard is rated first on Admit.org for example, due to it having billions in NIH funding, but many may feel that NIH funding per faculty is more important than overall funding. In order to move beyond single-opinion rankings and incorporate a broader, more representative set of priorities, we set out to create **medicalschoolrankings.org**, a crowdsourced, transparent, and customizable medical school ranking platform that reflects the collective priorities of pre-meds, medical stuents, researchers, and physicians.
 
 **medicalschoolrankings.org** allows users to assign their own weights to the following key metrics:
 - median MCAT
@@ -38,4 +38,5 @@ See initial site here: https://josephiturner.com/med_school_rankings.html
 - 12/8/25 - Present in class
 
 ## Getting Started
+- run `npm install`
 - run `npm run dev`
