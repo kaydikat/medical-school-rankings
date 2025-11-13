@@ -1,42 +1,40 @@
 // src/lib/calculateRanks.ts
-import type { School } from '@/types/school'; // We'll define this next
+import type { School } from '@/types/school';
 
-const INVERSE_SCORE_COL = 'Avg Indebtedness ($)';
+const INVERSE_SCORE_COLS = ['Average Graduate Indebtedness', 'Tuition and Fees', 'Total Cost of Attendance'];
 
 const RANKING_COLS = [
-  'Median MCAT',
-  'Median GPA',
-  'Research Funding Per Faculty',
-  'Count Nationally Ranked Specialties',
-  'Count T10 Ranked Specialties',
-  'Avg Indebtedness ($)',
-  'Full NIH Funding 2024',
-  'Yield %',
-  '% Receiving Aid',
-  'URM %',
-  'Low SES %'
+  'Average GPA',
+  'Average MCAT',
+  'Average Graduate Indebtedness',
+  'Total Cost of Attendance',
+  'Tuition and Fees',
+  'NIH Research Funding',
+  'NIH Research Funding per Faculty',
+  '#n_ranked_specialties',
+  '#n_top10_specialties',
+  'URM%'
 ] as const;
 
 export type Weights = Record<typeof RANKING_COLS[number], number>;
 
 export const DEFAULT_WEIGHTS: Weights = {
-  'Median MCAT': 15,
-  'Median GPA': 15,
-  'Research Funding Per Faculty': 20,
-  'Count Nationally Ranked Specialties': 5,
-  'Count T10 Ranked Specialties': 10,
-  'Avg Indebtedness ($)': 5,
-  'Full NIH Funding 2024': 10,
-  'Yield %': 5,
-  '% Receiving Aid': 5,
-  'URM %': 5,
-  'Low SES %': 5
+  'Average GPA': 10,
+  'Average MCAT': 10,
+  'Average Graduate Indebtedness': 10,
+  'Total Cost of Attendance': 10,
+  'Tuition and Fees': 10,
+  'NIH Research Funding': 10,
+  'NIH Research Funding per Faculty': 10,
+  '#n_ranked_specialties': 10,
+  '#n_top10_specialties': 10,
+  'URM%': 10
 };
 
 export function calculateRanks(data: School[], weights: Weights): School[] {
   const proc = JSON.parse(JSON.stringify(data));
 
-  // Fill missing values with median
+  // Fill missing values with median (same as before)
   RANKING_COLS.forEach(col => {
     const vals = proc.map((d: any) => d[col]).filter((v: any) => v != null && !isNaN(v));
     if (!vals.length) return;
@@ -58,18 +56,20 @@ export function calculateRanks(data: School[], weights: Weights): School[] {
     scaled[col] = vals.map((v: number) => max === min ? 0 : (v - min) / (max - min));
   });
 
-  // Invert indebtedness
-  if (scaled[INVERSE_SCORE_COL]) {
-    scaled[INVERSE_SCORE_COL] = scaled[INVERSE_SCORE_COL].map(v => 1 - v);
-  }
+  // Invert "bad" columns (higher value = worse)
+  INVERSE_SCORE_COLS.forEach(col => {
+    if (scaled[col]) {
+      scaled[col] = scaled[col].map(v => 1 - v);
+    }
+  });
 
-  // Composite score
+  // Composite score (same)
   proc.forEach((d: any, i: number) => {
     d.CompositeScore = RANKING_COLS.reduce((sum, c) =>
       sum + scaled[c][i] * (weights[c] / 100), 0);
   });
 
-  // Sort and rank
+  // Sort and rank (same)
   proc.sort((a: any, b: any) => b.CompositeScore - a.CompositeScore);
   proc.forEach((d: any, i: number) => {
     d.Rank = i > 0 && proc[i].CompositeScore === proc[i - 1].CompositeScore

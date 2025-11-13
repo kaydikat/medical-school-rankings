@@ -11,8 +11,10 @@
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
     "bootstrap": "^5.3.3",
+    "csv-parser": "^3.2.0",
     "datatables.net": "^2.3.4",
     "datatables.net-bs5": "^2.3.4",
+    "fs": "^0.0.1-security",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",

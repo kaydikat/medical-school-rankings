@@ -1,17 +1,24 @@
-// src/types/school.ts
 export interface School {
-  'MSAR Name': string;
-  'Median MCAT': number;
-  'Median GPA': number;
-  'Research Funding Per Faculty': number;
-  'Count Nationally Ranked Specialties': number;
-  'Count T10 Ranked Specialties': number;
-  'Avg Indebtedness ($)': number;
-  'Full NIH Funding 2024': number;
-  'Yield %': number | null;
-  '% Receiving Aid': number;
-  'URM %': number;
-  'Low SES %': number;
+  AAMC_Institution: string;
+  canonical_name: string;
+  'Degree Type': string;
+  'Average GPA': number;
+  'Average MCAT': number;
+  'Average Graduate Indebtedness': number;
+  'Tuition and Fees': number;
+  'Total Cost of Attendance': number;
+  '% Receiving Aid': string; // e.g., "100%"
+  'NIH Research Funding': number;
+  'NIH Research Funding per Faculty': number;
+  'Total Faculty': number;
+  '#n_ranked_specialties': number;
+  '#n_top10_specialties': number;
+  '#n_top1_specialties': number;
+  'URM%': number;
+  Applications: number;
+  'Class Size': number;
+  'Matriculation Rate': number;
+  // Add any individual specialty columns if needed later, e.g., Cancer: number;
   Rank?: number;
   CompositeScore?: number;
 }
