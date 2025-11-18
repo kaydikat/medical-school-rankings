@@ -4,9 +4,18 @@ import React, { useState, useMemo } from 'react';
 import { CATEGORY_CONFIG } from '@/lib/rankingConfig';
 import { ArrowUpDown, ChevronLeft, ChevronRight } from '@/components/Icons';
 
+// Helper to match the exact styling from the reference HTML
+const CATEGORY_STYLES: Record<string, string> = {
+  'Academics': 'bg-blue-50 text-blue-800 border-blue-200',
+  'Research': 'bg-purple-50 text-purple-800 border-purple-200',
+  'Finances': 'bg-green-50 text-green-800 border-green-200',
+  'Clinical Quality': 'bg-orange-50 text-orange-800 border-orange-200',
+  'Student Body': 'bg-pink-50 text-pink-800 border-pink-200',
+};
+
 // Formatters
-const formatCurrency = (val: number) => val ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val) : '-';
-const formatPercent = (val: number) => val ? `${(val * 100).toFixed(1)}%` : '-';
+const formatCurrency = (val: any) => val ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val) : '-';
+const formatPercent = (val: any) => val ? `${(Number(val)).toFixed(1)}%` : '-';
 
 interface RankingsTableProps {
   data: any[];
@@ -60,7 +69,7 @@ export default function RankingsTable({ data }: RankingsTableProps) {
   return (
     <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden flex flex-col h-full">
       {/* SCROLLABLE AREA */}
-      <div className="overflow-auto custom-scroll h-full relative" style={{ maxHeight: '70vh' }}>
+      <div className="overflow-auto custom-scroll h-full relative">
         <table className="min-w-full divide-y divide-gray-200 border-collapse">
           <thead className="bg-slate-50 sticky top-0 z-40 shadow-sm">
             <tr>
@@ -71,7 +80,7 @@ export default function RankingsTable({ data }: RankingsTableProps) {
                 Institution
               </th>
               {CATEGORY_CONFIG.map(group => (
-                <th key={group.id} colSpan={group.factors.length} className={`text-center py-1 text-[10px] uppercase font-bold tracking-widest border-b border-l border-gray-200 ${group.color}`}>
+                <th key={group.id} colSpan={group.factors.length} className={`text-center py-1 text-[10px] uppercase font-bold tracking-widest border-b border-l border-gray-200 ${CATEGORY_STYLES[group.id] || 'bg-gray-50'}`}>
                   {group.id}
                 </th>
               ))}
@@ -113,7 +122,7 @@ export default function RankingsTable({ data }: RankingsTableProps) {
                     {(() => {
                       const val = row[col.key];
                       if (col.key.includes('Funding') || col.key.includes('Cost') || col.key.includes('Tuition') || col.key.includes('Indebtedness')) return formatCurrency(val);
-                      if (col.key === 'Average GPA') return val ? val.toFixed(2) : '-';
+                      if (col.key === 'Average GPA') return val ? Number(val).toFixed(2) : '-';
                       if (col.key === 'Average MCAT') return val ? Math.round(val) : '-';
                       if (col.key.includes('%')) return formatPercent(val);
                       return val || '-';
@@ -132,7 +141,7 @@ export default function RankingsTable({ data }: RankingsTableProps) {
       {/* PAGINATION */}
       <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between flex-none z-40 relative">
         <div className="text-xs text-gray-500 hidden sm:block">
-          Showing {((currentPage-1)*itemsPerPage)+1} - {Math.min(currentPage*itemsPerPage, data.length)} of {data.length}
+          Showing {((currentPage-1)*itemsPerPage)+1} - {Math.min(currentPage*itemsPerPage, sortedData.length)} of {sortedData.length}
         </div>
         <div className="flex items-center gap-3">
           <select value={itemsPerPage} onChange={e => {setItemsPerPage(Number(e.target.value)); setCurrentPage(1)}} className="text-xs border rounded p-1">
@@ -144,7 +153,7 @@ export default function RankingsTable({ data }: RankingsTableProps) {
           <div className="flex">
             <button disabled={currentPage===1} onClick={()=>setCurrentPage(p=>p-1)} className="px-2 py-1 border rounded-l bg-white hover:bg-gray-50 disabled:opacity-50"><ChevronLeft className="w-4 h-4"/></button>
             <span className="px-3 py-1 border-t border-b bg-white text-xs font-medium pt-2">{currentPage}</span>
-            <button disabled={currentPage>=Math.ceil(data.length/itemsPerPage)} onClick={()=>setCurrentPage(p=>p+1)} className="px-2 py-1 border rounded-r bg-white hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="w-4 h-4"/></button>
+            <button disabled={currentPage>=Math.ceil(sortedData.length/itemsPerPage)} onClick={()=>setCurrentPage(p=>p+1)} className="px-2 py-1 border rounded-r bg-white hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="w-4 h-4"/></button>
           </div>
         </div>
       </div>
