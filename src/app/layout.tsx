@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-// The Geist font imports are now completely removed.
-import "./globals.css";
+import "./globals.css"; // This import is crucial!
 
 export const metadata: Metadata = {
   title: "Medical School Rankings", 
@@ -14,7 +13,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      {/* Ensure you remove the font-related classNames entirely */}
       <body className="antialiased"> 
         {children}
       </body>
