@@ -40,3 +40,8 @@ See initial site here: https://josephiturner.com/med_school_rankings.html
 ## Getting Started
 - run `npm install`
 - run `npm run dev`
+
+###
+- submit form should be inside calcualte thing
+- about page
+- and then use ins ate tuition

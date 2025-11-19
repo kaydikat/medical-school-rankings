@@ -1,16 +1,18 @@
+// src/app/calculate/page.tsx
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation'; 
 import schoolsData from '@/data/schools.json';
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 import RankingsTable from '@/components/RankingsTable';
+import SubmitModal from '@/components/SubmitModal';
 import { 
   GraduationCap, Search, SlidersIcon, Save, Percent, 
-  XCircle, RefreshCw, UploadCloud 
+  XCircle, RefreshCw, UploadCloud, Info, MoreHorizontal, FileText, Upload 
 } from '@/components/Icons';
 
-// Helper to match the exact styling from the reference HTML
 const CATEGORY_STYLES: Record<string, string> = {
   'Academics': 'bg-blue-50 text-blue-800 border-blue-200',
   'Research': 'bg-purple-50 text-purple-800 border-purple-200',
@@ -20,17 +22,32 @@ const CATEGORY_STYLES: Record<string, string> = {
 };
 
 export default function CalculatePage() {
-    // --- State ---
+    const searchParams = useSearchParams();
+    const openParam = searchParams.get('open');
+    
     const [weights, setWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
     const [searchTerm, setSearchTerm] = useState('');
-    // Reference UI has this defaulting to false usually, but let's keep it consistent with your preference
-    const [showRankingsPanel, setShowRankingsPanel] = useState(false);
+    const [showRankingsPanel, setShowRankingsPanel] = useState(openParam === 'true');
+    const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    
+    // Dropdown Menu & File Upload State
+    const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- Core Ranking Logic ---
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowDownloadMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const rankedData = useMemo(() => {
         const flattenedFactors = CATEGORY_CONFIG.flatMap(g => g.factors).filter(f => f.type !== 'display_only');
         
-        // 1. Calculate Min/Max for normalization
         const stats: Record<string, { min: number, max: number }> = {};
         flattenedFactors.forEach(factor => {
             const values = schoolsData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
@@ -41,7 +58,6 @@ export default function CalculatePage() {
             }
         });
 
-        // 2. Score each school
         const scored = schoolsData.map((school: any) => {
             let totalScore = 0;
             flattenedFactors.forEach(factor => {
@@ -51,7 +67,6 @@ export default function CalculatePage() {
                 let rawVal = school[factor.key];
                 const { min, max } = stats[factor.key];
 
-                // Handle missing data
                 if (rawVal === null || rawVal === undefined) {
                     rawVal = factor.type === 'inverse' ? max : min;
                 }
@@ -70,7 +85,6 @@ export default function CalculatePage() {
             return { ...school, rawScore: totalScore };
         });
 
-        // 3. Sort by Score Descending
         scored.sort((a: any, b: any) => {
             const diff = b.rawScore - a.rawScore;
             if (Math.abs(diff) < 0.00001) {
@@ -79,7 +93,6 @@ export default function CalculatePage() {
             return diff;
         });
 
-        // 4. Assign Ranks
         scored.forEach((row: any, index: number) => {
             if (index > 0 && Math.abs(row.rawScore - scored[index-1].rawScore) < 0.00001) {
                 row.CustomRank = scored[index-1].CustomRank;
@@ -91,7 +104,6 @@ export default function CalculatePage() {
         return scored;
     }, [weights]);
 
-    // --- Filtering ---
     const filteredData = useMemo(() => {
         if (!searchTerm) return rankedData;
         const lowerTerm = searchTerm.toLowerCase();
@@ -101,20 +113,83 @@ export default function CalculatePage() {
         );
     }, [rankedData, searchTerm]);
 
-    // --- Handlers ---
     const handleWeightChange = (key: string, val: string) => {
         setWeights(prev => ({ ...prev, [key]: parseInt(val) || 0 }));
     };
 
-    // DOWNLOAD Feature (Separated)
     const handleDownloadWeights = () => {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weights, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "weights.json");
+        downloadAnchorNode.setAttribute("download", "ranking_weights.json");
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
+        setShowDownloadMenu(false);
+    };
+
+    // UPLOAD WEIGHTS LOGIC
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const json = JSON.parse(e.target?.result as string);
+                // Optional: Validate keys against DEFAULT_WEIGHTS to ensure compatibility
+                const validKeys = Object.keys(DEFAULT_WEIGHTS);
+                const cleanWeights = { ...DEFAULT_WEIGHTS }; // Start with defaults to handle missing keys
+                
+                let hasValidData = false;
+                Object.keys(json).forEach(key => {
+                    if (validKeys.includes(key) && typeof json[key] === 'number') {
+                        cleanWeights[key] = json[key];
+                        hasValidData = true;
+                    }
+                });
+
+                if (hasValidData) {
+                    setWeights(cleanWeights);
+                    setShowDownloadMenu(false);
+                } else {
+                    alert("The uploaded JSON does not contain valid ranking weights.");
+                }
+            } catch (error) {
+                alert("Failed to parse JSON file. Please check the file format.");
+            }
+            // Reset input so same file can be selected again if needed
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        };
+        reader.readAsText(file);
+    };
+
+    const handleDownloadRankings = () => {
+        const factors = CATEGORY_CONFIG.flatMap(g => g.factors);
+        const headers = ['Rank', 'Institution', ...factors.map(f => f.label)];
+        
+        const rows = filteredData.map(school => {
+            return [
+                school.CustomRank,
+                `"${school.AAMC_Institution}"`,
+                ...factors.map(f => {
+                    const val = school[f.key];
+                    return val !== null && val !== undefined ? val : '';
+                })
+            ].join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'medical_school_rankings.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setShowDownloadMenu(false);
     };
 
     const rescaleWeights = () => {
@@ -151,12 +226,20 @@ export default function CalculatePage() {
             <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm flex-none">
                 <div className="max-w-[1600px] mx-auto px-4 py-3">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <Link href="/" className="flex items-center gap-2 text-decoration-none">
-                            <GraduationCap className="w-8 h-8 text-blue-600" />
-                            <h1 className="text-2xl font-bold text-slate-800">
-                                Med School Rankings
-                            </h1>
-                        </Link>
+                        <div className="flex items-center gap-8">
+                            <Link href="/" className="flex items-center gap-2 text-decoration-none">
+                                <GraduationCap className="w-8 h-8 text-blue-600" />
+                                <h1 className="text-2xl font-bold text-slate-800">
+                                    Med School Rankings
+                                </h1>
+                            </Link>
+                            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+                                <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
+                                <Link href="/calculate?open=true" className="text-blue-600">Customize</Link>
+                                <Link href="/about" className="hover:text-blue-600 transition-colors">About</Link>
+                            </nav>
+                        </div>
+
                         <div className="flex items-center gap-3">
                             <div className="relative hidden md:block w-64">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -193,23 +276,18 @@ export default function CalculatePage() {
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="font-bold text-slate-800 text-lg">Custom Ranking Weights</h3>
-                                <p className="text-sm text-slate-500">Adjust priorities to generate your own personalized list. Missing data results in 0 points for that category.</p>
+                                <p className="text-sm text-slate-500">Adjust priorities to generate your own personalized list.</p>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className={`text-sm font-bold px-4 py-1.5 rounded-full border ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                                     Total Weight: {totalWeight}%
                                 </div>
                                 
-                                {/* SEPARATE SUBMIT AND DOWNLOAD BUTTONS */}
-                                <Link 
-                                    href={{ pathname: '/submit', query: { weights: JSON.stringify(weights) } }} 
+                                <button 
+                                    onClick={() => setIsSubmitModalOpen(true)}
                                     className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 font-medium shadow-sm transition-colors"
                                 >
-                                    <UploadCloud className="w-3 h-3" /> Submit
-                                </Link>
-
-                                <button onClick={handleDownloadWeights} className="text-sm text-slate-600 hover:text-blue-600 flex items-center gap-1 font-medium border-l pl-4 border-gray-300">
-                                    <Save className="w-3 h-3" /> Download JSON
+                                    <UploadCloud className="w-3 h-3" /> Contribute
                                 </button>
 
                                 <button onClick={rescaleWeights} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
@@ -223,6 +301,51 @@ export default function CalculatePage() {
                                 <button onClick={() => setWeights(DEFAULT_WEIGHTS)} className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
                                     <RefreshCw className="w-3 h-3" /> Reset
                                 </button>
+
+                                <div className="relative" ref={menuRef}>
+                                    <button 
+                                        onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                                        className={`p-1.5 rounded hover:bg-gray-200 transition-colors text-slate-500 ${showDownloadMenu ? 'bg-gray-200 text-slate-800' : ''}`}
+                                        title="More Options"
+                                    >
+                                        <MoreHorizontal className="w-5 h-5" />
+                                    </button>
+                                    
+                                    {showDownloadMenu && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                            <div className="py-1">
+                                                {/* Hidden Input for Upload */}
+                                                <input 
+                                                    type="file" 
+                                                    accept=".json" 
+                                                    ref={fileInputRef} 
+                                                    className="hidden" 
+                                                    onChange={handleFileUpload} 
+                                                />
+
+                                                <button 
+                                                    onClick={handleDownloadRankings}
+                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                                                >
+                                                    <FileText className="w-4 h-4" /> Download CSV
+                                                </button>
+                                                <button 
+                                                    onClick={handleDownloadWeights}
+                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
+                                                >
+                                                    <Save className="w-4 h-4" /> Download Weights
+                                                </button>
+                                                <button 
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 border-t border-gray-100"
+                                                >
+                                                    <Upload className="w-4 h-4" /> Upload Weights
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
                             </div>
                         </div>
 
@@ -235,10 +358,20 @@ export default function CalculatePage() {
                                     <div className="space-y-4 pl-1">
                                         {group.factors.filter(f => f.type !== 'display_only').map(factor => (
                                             <div key={factor.key}>
-                                                <div className="flex justify-between mb-1 items-end">
-                                                    <label className="text-xs font-medium text-slate-700 cursor-help border-b border-dotted border-gray-400" title={factor.tooltip}>
-                                                        {factor.label}
-                                                    </label>
+                                                <div className="flex justify-between mb-1 items-center">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <label className="text-xs font-medium text-slate-700">
+                                                            {factor.label}
+                                                        </label>
+                                                        
+                                                        <div className="group relative flex items-center">
+                                                            <Info className="w-3.5 h-3.5 text-slate-400 hover:text-blue-600" />
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                                                {factor.tooltip}
+                                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <span className="text-xs text-slate-500">{weights[factor.key]}%</span>
                                                 </div>
                                                 <input 
@@ -258,10 +391,27 @@ export default function CalculatePage() {
                 </div>
             )}
 
-            {/* TABLE CONTAINER */}
             <div className="max-w-[1600px] mx-auto px-4 mt-6 flex-1 min-h-0 flex flex-col w-full">
-                <RankingsTable data={filteredData} />
+                <div className="flex items-center justify-between mb-4 flex-none">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Your Personalized Rankings</h2>
+                        <p className="text-sm text-slate-500">Based on your unique weights and preferences</p>
+                    </div>
+                    <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wide">
+                        {filteredData.length} Schools
+                    </div>
+                </div>
+
+                <div className="flex-1 min-h-0">
+                    <RankingsTable data={filteredData} />
+                </div>
             </div>
+
+            <SubmitModal 
+                isOpen={isSubmitModalOpen} 
+                onClose={() => setIsSubmitModalOpen(false)} 
+                weights={weights} 
+            />
         </div>
     );
 }
