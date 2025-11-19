@@ -6,17 +6,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/lib/supabase';
 import { ROLE_UI_TO_DB } from '@/lib/roleMap';
-import { XCircle, UploadCloud, AlertTriangle } from '@/components/Icons'; // Added AlertTriangle for error icon if you have it, otherwise generic is fine
+import { XCircle, UploadCloud, RefreshCw, GraduationCap } from '@/components/Icons';
 
-// Zod Schema for Validation
-const schema = z.object({
+// Schema for the initial form
+const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   roleUi: z.string().min(1, 'Please select a role'),
   mcat: z.string().optional(),
   gpa: z.string().optional(),
 });
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<typeof formSchema>;
 
 interface SubmitModalProps {
   isOpen: boolean;
@@ -25,60 +25,125 @@ interface SubmitModalProps {
 }
 
 export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalProps) {
+  // State to track which "screen" of the modal we are on
+  const [step, setStep] = useState<'FORM' | 'OTP'>('FORM');
+  const [emailForOtp, setEmailForOtp] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   
+  // React Hook Form
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    getValues,
+    formState: { errors },
     reset
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({ resolver: zodResolver(formSchema) });
 
   if (!isOpen) return null;
 
-  const onSubmit = async (data: FormData) => {
+  // STEP 1: Request OTP
+  const onRequestOtp = async (data: FormData) => {
     setMessage(null);
+    setIsLoading(true);
 
-    // --- VALIDATION STEP: Check if weights sum to 100 ---
+    // VALIDATION: Weights must sum to 100
     const totalWeight = Object.values(weights).reduce((sum, val) => sum + (val || 0), 0);
-    
     if (totalWeight !== 100) {
       setMessage({ 
-        text: `Error: Your weights sum to ${totalWeight}%. They must equal exactly 100%. Please close this form, adjust your sliders, and try again.`, 
+        text: `Error: Weights sum to ${totalWeight}%. They must equal 100%.`, 
         type: 'error' 
       });
-      return; // STOP here if invalid
+      setIsLoading(false);
+      return;
     }
-    // ----------------------------------------------------
-
-    const roleDb = ROLE_UI_TO_DB[data.roleUi];
 
     try {
-      const { error } = await supabase
-        .from('submissions')
-        .upsert({
-          email: data.email,
-          role: roleDb,
-          mcat: data.mcat ? Number(data.mcat) : null,
-          gpa: data.gpa ? Number(data.gpa) : null,
-          weights, 
-          verified: true,
-        }, { onConflict: 'email' });
+      // Check if we already have a session
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // If already logged in as this user, skip OTP and just save
+      if (session?.user?.email === data.email) {
+         await saveData(data);
+         return;
+      }
+
+      // Otherwise, send the OTP
+      const { error } = await supabase.auth.signInWithOtp({
+        email: data.email,
+        options: {
+          shouldCreateUser: true, // Create user if they don't exist
+        }
+      });
 
       if (error) throw error;
 
-      setMessage({ text: 'Success! Your rankings have been contributed.', type: 'success' });
-      
-      // Close after a brief delay on success
-      setTimeout(() => {
-        reset();
-        setMessage(null);
-        onClose();
-      }, 2000);
+      // Move to Step 2
+      setEmailForOtp(data.email);
+      setStep('OTP');
+      setMessage({ text: `Code sent to ${data.email}`, type: 'success' });
 
     } catch (error: any) {
-      setMessage({ text: 'Error: ' + error.message, type: 'error' });
+      setMessage({ text: error.message, type: 'error' });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // STEP 2: Verify OTP and Save Data
+  const onVerifyAndSave = async () => {
+    setMessage(null);
+    setIsLoading(true);
+
+    try {
+      // 1. Verify Code
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: emailForOtp,
+        token: otpCode,
+        type: 'email',
+      });
+
+      if (verifyError) throw verifyError;
+
+      // 2. Save Data (Now that we are authenticated)
+      // We retrieve the form values from the previous step
+      const formData = getValues();
+      await saveData(formData);
+
+    } catch (error: any) {
+      setMessage({ text: 'Invalid code or error saving. ' + error.message, type: 'error' });
+      setIsLoading(false);
+    }
+  };
+
+  // Helper to actually insert the row
+  const saveData = async (data: FormData) => {
+    const roleDb = ROLE_UI_TO_DB[data.roleUi];
+
+    const { error } = await supabase
+      .from('submissions')
+      .upsert({
+        email: data.email,
+        role: roleDb,
+        mcat: data.mcat ? Number(data.mcat) : null,
+        gpa: data.gpa ? Number(data.gpa) : null,
+        weights, 
+        verified: true, // It is verified now!
+      }, { onConflict: 'email' });
+
+    if (error) throw error;
+
+    setMessage({ text: 'Success! Rankings saved.', type: 'success' });
+    
+    setTimeout(() => {
+      reset();
+      setStep('FORM');
+      setOtpCode('');
+      setMessage(null);
+      onClose();
+      setIsLoading(false);
+    }, 1500);
   };
 
   return (
@@ -89,75 +154,102 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
         <div className="bg-slate-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-emerald-600" />
-            Contribute Rankings
+            {step === 'FORM' ? 'Contribute Rankings' : 'Verify Email'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <XCircle className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Form */}
         <div className="p-6">
-          <p className="text-sm text-slate-500 mb-4">
-            Submit your current weights to help build the crowdsourced rankings.
-          </p>
+          
+          {/* STEP 1: FORM */}
+          {step === 'FORM' && (
+            <form onSubmit={handleSubmit(onRequestOtp)} className="space-y-4">
+              <p className="text-sm text-slate-500 mb-4">
+                Submit your weights. We will send a one-time code to your email to verify you.
+              </p>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">Email (Required)</label>
+                <input {...register('email')} type="email" placeholder="you@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+              </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">Email (Required)</label>
-              <input 
-                {...register('email')} 
-                type="email" 
-                placeholder="you@example.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" 
-              />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-            </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">Role (Required)</label>
+                <select {...register('roleUi')} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                  <option value="">-- Select Role --</option>
+                  {Object.keys(ROLE_UI_TO_DB).map(label => (
+                    <option key={label} value={label}>{label}</option>
+                  ))}
+                </select>
+                {errors.roleUi && <p className="text-red-500 text-xs mt-1">{errors.roleUi.message}</p>}
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">Role (Required)</label>
-              <select 
-                {...register('roleUi')} 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all bg-white"
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">MCAT <span className="font-normal text-gray-400 normal-case">(Optional)</span></label>
+                  <input {...register('mcat')} type="number" placeholder="515" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">GPA <span className="font-normal text-gray-400 normal-case">(Optional)</span></label>
+                  <input {...register('gpa')} type="number" step="0.01" placeholder="3.85" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isLoading} 
+                className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex justify-center items-center gap-2"
               >
-                <option value="">-- Select Role --</option>
-                {Object.keys(ROLE_UI_TO_DB).map(label => (
-                  <option key={label} value={label}>{label}</option>
-                ))}
-              </select>
-              {errors.roleUi && <p className="text-red-500 text-xs mt-1">{errors.roleUi.message}</p>}
+                {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Send Verification Code'}
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2: OTP ENTRY */}
+          {step === 'OTP' && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <GraduationCap className="w-12 h-12 text-emerald-100 bg-emerald-600 rounded-full p-2 mx-auto mb-3" />
+                <h4 className="font-bold text-slate-800">Check your email</h4>
+                <p className="text-sm text-slate-500">We sent a 6-digit code to <span className="font-medium text-slate-800">{emailForOtp}</span></p>
+              </div>
+
+              <input 
+                type="text" 
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                placeholder="123456"
+                className="w-full text-center text-2xl tracking-widest font-bold px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                maxLength={6}
+              />
+
+              <button 
+                onClick={onVerifyAndSave} 
+                disabled={isLoading || otpCode.length < 6} 
+                className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-sm flex justify-center items-center gap-2"
+              >
+                 {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify & Save'}
+              </button>
+
+              <button 
+                onClick={() => setStep('FORM')} 
+                className="w-full text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                Go back / Wrong email
+              </button>
             </div>
+          )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">MCAT <span className="font-normal text-gray-400 normal-case">(Optional)</span></label>
-                <input {...register('mcat')} type="number" placeholder="515" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wide">GPA <span className="font-normal text-gray-400 normal-case">(Optional)</span></label>
-                <input {...register('gpa')} type="number" step="0.01" placeholder="3.85" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" />
-              </div>
+          {/* Global Message */}
+          {message && (
+            <div className={`mt-4 p-3 rounded text-sm font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {message.text}
             </div>
+          )}
 
-            {/* Error / Success Message Area */}
-            {message && (
-              <div className={`p-3 rounded text-sm font-medium flex items-start gap-2 ${
-                message.type === 'success' 
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                <span>{message.text}</span>
-              </div>
-            )}
-
-            <button 
-              type="submit" 
-              disabled={isSubmitting} 
-              className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-            >
-              {isSubmitting ? 'Saving...' : 'Save Weights'}
-            </button>
-          </form>
         </div>
       </div>
     </div>

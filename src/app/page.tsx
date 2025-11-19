@@ -1,22 +1,50 @@
-// src/app/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import schoolsData from '@/data/schools.json';
+import schoolsData from '@/data/final_medical_school_data.json'; // Use correct JSON
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 import { useAggregates } from '@/lib/useAggregates';
 import RankingsTable from '@/components/RankingsTable';
 import { GraduationCap, SlidersIcon, Search } from '@/components/Icons';
 
-// Helper: Calculate Scores based on weights
-const calculateRanking = (weights: Record<string, number>) => {
+export default function HomePage() {
+  const { aggregates, loading } = useAggregates();
+  const [rankedSchools, setRankedSchools] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // NEW: State for In-State Tuition
+  const [isInState, setIsInState] = useState(false);
+
+  // 1. Update ranking when aggregates or toggle changes
+  useEffect(() => {
+    if (aggregates.length === 0) return;
+    
+    const overallAgg = aggregates.find(a => a.role === 'overall');
+    const weights = overallAgg ? overallAgg.weights : DEFAULT_WEIGHTS;
+    
+    // --- MAPPING LOGIC FOR IN-STATE VS OUT-OF-STATE ---
+    // We do this BEFORE normalization so the ranking is accurate to the cost
+    const mappedData = schoolsData.map((d: any) => {
+        const row = { ...d };
+        if (isInState) {
+            // Use In-State values if available
+            if (row['instate_Total Cost of Attendance'] !== undefined) {
+                row['Total Cost of Attendance'] = row['instate_Total Cost of Attendance'];
+            }
+            if (row['instate_Tuition and Fees'] !== undefined) {
+                row['Tuition and Fees'] = row['instate_Tuition and Fees'];
+            }
+        }
+        return row;
+    });
+    // --------------------------------------------------
+
     const flattenedFactors = CATEGORY_CONFIG.flatMap(g => g.factors).filter(f => f.type !== 'display_only');
     
-    // 1. Stats for normalization
     const stats: Record<string, { min: number, max: number }> = {};
     flattenedFactors.forEach(factor => {
-        const values = schoolsData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
+        const values = mappedData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
         if (values.length) {
             stats[factor.key] = { min: Math.min(...values), max: Math.max(...values) };
         } else {
@@ -24,8 +52,7 @@ const calculateRanking = (weights: Record<string, number>) => {
         }
     });
 
-    // 2. Score
-    const scored = schoolsData.map((school: any) => {
+    const scored = mappedData.map((school: any) => {
         let totalScore = 0;
         flattenedFactors.forEach(factor => {
             const weight = weights[factor.key] || 0;
@@ -50,7 +77,6 @@ const calculateRanking = (weights: Record<string, number>) => {
         return { ...school, rawScore: totalScore };
     });
 
-    // 3. Sort
     scored.sort((a: any, b: any) => {
         const diff = b.rawScore - a.rawScore;
         if (Math.abs(diff) < 0.00001) {
@@ -59,7 +85,6 @@ const calculateRanking = (weights: Record<string, number>) => {
         return diff;
     });
 
-    // 4. Rank
     scored.forEach((row: any, index: number) => {
         if (index > 0 && Math.abs(row.rawScore - scored[index-1].rawScore) < 0.00001) {
             row.CustomRank = scored[index-1].CustomRank;
@@ -68,28 +93,10 @@ const calculateRanking = (weights: Record<string, number>) => {
         }
     });
 
-    return scored;
-};
-
-
-export default function HomePage() {
-  const { aggregates, loading } = useAggregates();
-  const [rankedSchools, setRankedSchools] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // 1. Update ranking when aggregates load
-  useEffect(() => {
-    if (aggregates.length === 0) return;
+    setRankedSchools(scored);
     
-    const overallAgg = aggregates.find(a => a.role === 'overall');
-    const weightsToUse = overallAgg ? overallAgg.weights : DEFAULT_WEIGHTS;
-    
-    const ranked = calculateRanking(weightsToUse);
-    setRankedSchools(ranked);
-    
-  }, [aggregates]);
+  }, [aggregates, isInState]); // Re-run when toggle changes
 
-  // 2. Filter schools based on search term
   const filteredSchools = useMemo(() => {
       if (!searchTerm) return rankedSchools;
       const lowerTerm = searchTerm.toLowerCase();
@@ -107,23 +114,18 @@ export default function HomePage() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm flex-none">
         <div className="max-w-[1600px] mx-auto px-4 py-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Left Side: Logo + Navigation */}
             <div className="flex items-center gap-8">
                 <Link href="/" className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <GraduationCap className="w-8 h-8 text-blue-600" />
                     Med School Rankings
                 </Link>
-
-                {/* Navigation */}
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
                     <Link href="/" className="text-blue-600">Home</Link>
-                    {/* Force panel open */}
                     <Link href="/calculate?open=true" className="hover:text-blue-600 transition-colors">Customize</Link>
                     <Link href="/about" className="hover:text-blue-600 transition-colors">About</Link>
                 </nav>
             </div>
 
-            {/* Right Side: Search + Action Button */}
             <div className="flex items-center gap-3">
               <div className="relative hidden md:block w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -152,9 +154,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* SIMPLE HEADER AND TABLE CONTAINER */}
+      {/* TABLE CONTAINER */}
       <div className="max-w-[1600px] mx-auto px-4 mt-6 flex-1 min-h-0 flex flex-col w-full">
-        {/* Table Header Context */}
         <div className="flex items-center justify-between mb-4 flex-none">
             <div>
                 <h2 className="text-xl font-bold text-slate-800">Overall Crowdsourced Rankings</h2>
@@ -165,12 +166,15 @@ export default function HomePage() {
             </div>
         </div>
 
-        {/* Table Wrapper */}
         <div className="flex-1 min-h-0">
           {loading ? (
               <div className="h-64 flex items-center justify-center text-slate-400">Loading live data...</div>
           ) : (
-              <RankingsTable data={filteredSchools} />
+              <RankingsTable 
+                  data={filteredSchools} 
+                  isInState={isInState} 
+                  onToggleInState={setIsInState} 
+              />
           )}
         </div>
       </div>

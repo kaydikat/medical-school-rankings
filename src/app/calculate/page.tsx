@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; 
-import schoolsData from '@/data/schools.json';
+import schoolsData from '@/data/final_medical_school_data.json';
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 import RankingsTable from '@/components/RankingsTable';
 import SubmitModal from '@/components/SubmitModal';
@@ -17,7 +17,7 @@ const CATEGORY_STYLES: Record<string, string> = {
   'Academics': 'bg-blue-50 text-blue-800 border-blue-200',
   'Research': 'bg-purple-50 text-purple-800 border-purple-200',
   'Finances': 'bg-green-50 text-green-800 border-green-200',
-  'Clinical Quality': 'bg-orange-50 text-orange-800 border-orange-200',
+  'Clinical Excellence': 'bg-orange-50 text-orange-800 border-orange-200', // UPDATED
   'Student Body': 'bg-pink-50 text-pink-800 border-pink-200',
 };
 
@@ -29,8 +29,8 @@ export default function CalculatePage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showRankingsPanel, setShowRankingsPanel] = useState(openParam === 'true');
     const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    const [isInState, setIsInState] = useState(false);
     
-    // Dropdown Menu & File Upload State
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,8 +49,22 @@ export default function CalculatePage() {
         const flattenedFactors = CATEGORY_CONFIG.flatMap(g => g.factors).filter(f => f.type !== 'display_only');
         
         const stats: Record<string, { min: number, max: number }> = {};
+        
+        const mappedData = schoolsData.map((d: any) => {
+            const row = { ...d };
+            if (isInState) {
+                if (row['instate_Total Cost of Attendance'] !== undefined) {
+                    row['Total Cost of Attendance'] = row['instate_Total Cost of Attendance'];
+                }
+                if (row['instate_Tuition and Fees'] !== undefined) {
+                    row['Tuition and Fees'] = row['instate_Tuition and Fees'];
+                }
+            }
+            return row;
+        });
+
         flattenedFactors.forEach(factor => {
-            const values = schoolsData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
+            const values = mappedData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
             if (values.length) {
                 stats[factor.key] = { min: Math.min(...values), max: Math.max(...values) };
             } else {
@@ -58,7 +72,7 @@ export default function CalculatePage() {
             }
         });
 
-        const scored = schoolsData.map((school: any) => {
+        const scored = mappedData.map((school: any) => {
             let totalScore = 0;
             flattenedFactors.forEach(factor => {
                 const weight = weights[factor.key] || 0;
@@ -75,11 +89,9 @@ export default function CalculatePage() {
                 if (max > min) {
                     normalized = (rawVal - min) / (max - min);
                 }
-
                 if (factor.type === 'inverse') {
                     normalized = 1 - normalized;
                 }
-
                 totalScore += normalized * weight;
             });
             return { ...school, rawScore: totalScore };
@@ -102,7 +114,7 @@ export default function CalculatePage() {
         });
 
         return scored;
-    }, [weights]);
+    }, [weights, isInState]);
 
     const filteredData = useMemo(() => {
         if (!searchTerm) return rankedData;
@@ -114,7 +126,11 @@ export default function CalculatePage() {
     }, [rankedData, searchTerm]);
 
     const handleWeightChange = (key: string, val: string) => {
-        setWeights(prev => ({ ...prev, [key]: parseInt(val) || 0 }));
+        let num = parseInt(val);
+        if (isNaN(num)) num = 0;
+        if (num > 100) num = 100;
+        if (num < 0) num = 0;
+        setWeights(prev => ({ ...prev, [key]: num }));
     };
 
     const handleDownloadWeights = () => {
@@ -128,19 +144,15 @@ export default function CalculatePage() {
         setShowDownloadMenu(false);
     };
 
-    // UPLOAD WEIGHTS LOGIC
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const json = JSON.parse(e.target?.result as string);
-                // Optional: Validate keys against DEFAULT_WEIGHTS to ensure compatibility
                 const validKeys = Object.keys(DEFAULT_WEIGHTS);
-                const cleanWeights = { ...DEFAULT_WEIGHTS }; // Start with defaults to handle missing keys
-                
+                const cleanWeights = { ...DEFAULT_WEIGHTS };
                 let hasValidData = false;
                 Object.keys(json).forEach(key => {
                     if (validKeys.includes(key) && typeof json[key] === 'number') {
@@ -148,17 +160,15 @@ export default function CalculatePage() {
                         hasValidData = true;
                     }
                 });
-
                 if (hasValidData) {
                     setWeights(cleanWeights);
                     setShowDownloadMenu(false);
                 } else {
-                    alert("The uploaded JSON does not contain valid ranking weights.");
+                    alert("Invalid weights file.");
                 }
             } catch (error) {
-                alert("Failed to parse JSON file. Please check the file format.");
+                alert("Failed to parse file.");
             }
-            // Reset input so same file can be selected again if needed
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
         reader.readAsText(file);
@@ -167,7 +177,6 @@ export default function CalculatePage() {
     const handleDownloadRankings = () => {
         const factors = CATEGORY_CONFIG.flatMap(g => g.factors);
         const headers = ['Rank', 'Institution', ...factors.map(f => f.label)];
-        
         const rows = filteredData.map(school => {
             return [
                 school.CustomRank,
@@ -178,11 +187,9 @@ export default function CalculatePage() {
                 })
             ].join(',');
         });
-
         const csvContent = [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', 'medical_school_rankings.csv');
@@ -197,13 +204,11 @@ export default function CalculatePage() {
         if (total === 0) return;
         const newWeights: Record<string, number> = {};
         let currentTotal = 0;
-        
         Object.keys(weights).forEach(key => {
             const val = Math.round((weights[key] / total) * 100);
             newWeights[key] = val;
             currentTotal += val;
         });
-
         const diff = 100 - currentTotal;
         if (diff !== 0) {
             const maxKey = Object.keys(newWeights).reduce((a, b) => newWeights[a] > newWeights[b] ? a : b);
@@ -283,10 +288,7 @@ export default function CalculatePage() {
                                     Total Weight: {totalWeight}%
                                 </div>
                                 
-                                <button 
-                                    onClick={() => setIsSubmitModalOpen(true)}
-                                    className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 font-medium shadow-sm transition-colors"
-                                >
+                                <button onClick={() => setIsSubmitModalOpen(true)} className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 font-medium shadow-sm transition-colors">
                                     <UploadCloud className="w-3 h-3" /> Contribute
                                 </button>
 
@@ -310,45 +312,26 @@ export default function CalculatePage() {
                                     >
                                         <MoreHorizontal className="w-5 h-5" />
                                     </button>
-                                    
                                     {showDownloadMenu && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-100">
                                             <div className="py-1">
-                                                {/* Hidden Input for Upload */}
-                                                <input 
-                                                    type="file" 
-                                                    accept=".json" 
-                                                    ref={fileInputRef} 
-                                                    className="hidden" 
-                                                    onChange={handleFileUpload} 
-                                                />
-
-                                                <button 
-                                                    onClick={handleDownloadRankings}
-                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
-                                                >
+                                                <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                                                <button onClick={handleDownloadRankings} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
                                                     <FileText className="w-4 h-4" /> Download CSV
                                                 </button>
-                                                <button 
-                                                    onClick={handleDownloadWeights}
-                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2"
-                                                >
+                                                <button onClick={handleDownloadWeights} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
                                                     <Save className="w-4 h-4" /> Download Weights
                                                 </button>
-                                                <button 
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 border-t border-gray-100"
-                                                >
+                                                <button onClick={() => fileInputRef.current?.click()} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2 border-t border-gray-100">
                                                     <Upload className="w-4 h-4" /> Upload Weights
                                                 </button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-
                             </div>
                         </div>
-
+                        {/* Sliders Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                             {CATEGORY_CONFIG.map((group) => (
                                 <div key={group.id} className="space-y-3">
@@ -360,10 +343,7 @@ export default function CalculatePage() {
                                             <div key={factor.key}>
                                                 <div className="flex justify-between mb-1 items-center">
                                                     <div className="flex items-center gap-1.5">
-                                                        <label className="text-xs font-medium text-slate-700">
-                                                            {factor.label}
-                                                        </label>
-                                                        
+                                                        <label className="text-xs font-medium text-slate-700">{factor.label}</label>
                                                         <div className="group relative flex items-center">
                                                             <Info className="w-3.5 h-3.5 text-slate-400 hover:text-blue-600" />
                                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -372,7 +352,19 @@ export default function CalculatePage() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">{weights[factor.key]}%</span>
+                                                    
+                                                    {/* UPDATED: Manual Input for Weights */}
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={weights[factor.key]}
+                                                            onChange={(e) => handleWeightChange(factor.key, e.target.value)}
+                                                            className="w-12 text-xs text-right p-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                                                        />
+                                                        <span className="text-xs text-slate-500">%</span>
+                                                    </div>
                                                 </div>
                                                 <input 
                                                     type="range" 
@@ -395,15 +387,18 @@ export default function CalculatePage() {
                 <div className="flex items-center justify-between mb-4 flex-none">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">Your Personalized Rankings</h2>
-                        <p className="text-sm text-slate-500">Based on your unique weights and preferences</p>
+                        <p className="text-sm text-slate-500">Based on your unique weights and preferences ({isInState ? 'In-State' : 'Out-of-State'} Costs)</p>
                     </div>
                     <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wide">
                         {filteredData.length} Schools
                     </div>
                 </div>
-
                 <div className="flex-1 min-h-0">
-                    <RankingsTable data={filteredData} />
+                    <RankingsTable 
+                        data={filteredData} 
+                        isInState={isInState} 
+                        onToggleInState={setIsInState} 
+                    />
                 </div>
             </div>
 

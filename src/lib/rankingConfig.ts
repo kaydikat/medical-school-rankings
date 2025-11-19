@@ -5,8 +5,9 @@ export const CATEGORY_CONFIG = [
     id: 'Academics',
     color: 'bg-blue-50 text-blue-800 border-blue-200',
     factors: [
-      { key: 'Average GPA', label: 'GPA', tooltip: 'Average Undergraduate GPA', type: 'direct' },
-      { key: 'Average MCAT', label: 'MCAT', tooltip: 'Average MCAT score', type: 'direct' }
+      // REORDERED: MCAT first, then GPA
+      { key: 'Average MCAT', label: 'MCAT', tooltip: 'Average MCAT score', type: 'direct' },
+      { key: 'Average GPA', label: 'GPA', tooltip: 'Average Undergraduate GPA', type: 'direct' }
     ]
   },
   {
@@ -27,7 +28,7 @@ export const CATEGORY_CONFIG = [
     ]
   },
   {
-    id: 'Clinical Quality',
+    id: 'Clinical Excellence', // RENAMED from 'Clinical Quality'
     color: 'bg-orange-50 text-orange-800 border-orange-200',
     factors: [
       { key: '#n_ranked_specialties', label: 'Ranked Specialties', tooltip: 'Nationally Ranked Specialties by US News & World Report', type: 'direct' },
