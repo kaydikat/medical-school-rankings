@@ -1,4 +1,3 @@
-// src/app/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -24,9 +23,10 @@ export default function HomePage() {
     
     // Determine weights based on selected Role
     const activeAgg = aggregates.find(a => a.role === selectedRole) || aggregates.find(a => a.role === 'overall');
-    const weights = activeAgg ? activeAgg.weights : DEFAULT_WEIGHTS;
+    // Cast to Record<string, number> to satisfy TypeScript
+    const weights = (activeAgg ? activeAgg.weights : DEFAULT_WEIGHTS) as Record<string, number>;
     
-    // Map Data (In-State Logic)
+    // --- MAPPING LOGIC FOR IN-STATE VS OUT-OF-STATE ---
     const mappedData = schoolsData.map((d: any) => {
         const row = { ...d };
         if (isInState) {
@@ -40,10 +40,9 @@ export default function HomePage() {
         return row;
     });
 
-    // Ranking Logic
     const flattenedFactors = CATEGORY_CONFIG.flatMap(g => g.factors).filter(f => f.type !== 'display_only');
-    const stats: Record<string, { min: number, max: number }> = {};
     
+    const stats: Record<string, { min: number, max: number }> = {};
     flattenedFactors.forEach(factor => {
         const values = mappedData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
         if (values.length) {
@@ -96,7 +95,7 @@ export default function HomePage() {
 
     setRankedSchools(scored);
     
-  }, [aggregates, isInState, selectedRole]); // Added selectedRole dependency
+  }, [aggregates, isInState, selectedRole]);
 
   const filteredSchools = useMemo(() => {
       if (!searchTerm) return rankedSchools;
@@ -112,7 +111,8 @@ export default function HomePage() {
     return aggregates.find(a => a.role === selectedRole)?.weights || {};
   }, [aggregates, selectedRole]);
 
-  const totalSubmissions = aggregates.find(a => a.role === 'overall')?.count || 0;
+  // MODIFIED: Now calculates count based on the currently selected role
+  const submissionCount = aggregates.find(a => a.role === selectedRole)?.count || 0;
   
   return (
     <div className="min-h-screen pb-12 flex flex-col h-screen">
@@ -165,10 +165,12 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-4 flex-none">
             <div>
                 <h2 className="text-xl font-bold text-slate-800">Overall Crowdsourced Rankings</h2>
-                <p className="text-sm text-slate-500">Ranked by the aggregated priorities of all contributors.</p>
+                <p className="text-sm text-slate-500">
+                    Ranked by the aggregated priorities of contributors as of {new Date().getFullYear()}.
+                </p>
             </div>
             <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wide">
-                {totalSubmissions} Submissions
+                {submissionCount} Submissions
             </div>
         </div>
 

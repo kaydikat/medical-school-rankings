@@ -65,6 +65,8 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
 
       // If already logged in as this user, skip OTP and just save
       if (session?.user?.email === data.email) {
+         console.log("User already verified. Skipping email step.");
+         setMessage({ text: 'You are already verified! Saving now...', type: 'success' });
          await saveData(data);
          return;
       }
@@ -107,7 +109,6 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
       if (verifyError) throw verifyError;
 
       // 2. Save Data (Now that we are authenticated)
-      // We retrieve the form values from the previous step
       const formData = getValues();
       await saveData(formData);
 
@@ -147,7 +148,8 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    // FIXED: Changed z-50 to z-[100] to sit above the table headers (which are z-[60])
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
