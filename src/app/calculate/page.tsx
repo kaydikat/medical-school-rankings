@@ -1,7 +1,6 @@
-// src/app/calculate/page.tsx
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; 
 import schoolsData from '@/data/final_medical_school_data.json';
@@ -17,11 +16,12 @@ const CATEGORY_STYLES: Record<string, string> = {
   'Academics': 'bg-blue-50 text-blue-800 border-blue-200',
   'Research': 'bg-purple-50 text-purple-800 border-purple-200',
   'Finances': 'bg-green-50 text-green-800 border-green-200',
-  'Clinical Excellence': 'bg-orange-50 text-orange-800 border-orange-200', // UPDATED
+  'Clinical Excellence': 'bg-orange-50 text-orange-800 border-orange-200',
   'Student Body': 'bg-pink-50 text-pink-800 border-pink-200',
 };
 
-export default function CalculatePage() {
+// 1. INTERNAL COMPONENT: Contains all the logic
+function CalculateContent() {
     const searchParams = useSearchParams();
     const openParam = searchParams.get('open');
     
@@ -317,7 +317,7 @@ export default function CalculatePage() {
                                             <div className="py-1">
                                                 <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                                                 <button onClick={handleDownloadRankings} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4" /> Download Rankings
+                                                    <FileText className="w-4 h-4" /> Download CSV
                                                 </button>
                                                 <button onClick={handleDownloadWeights} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
                                                     <Save className="w-4 h-4" /> Download Weights
@@ -331,6 +331,7 @@ export default function CalculatePage() {
                                 </div>
                             </div>
                         </div>
+                        
                         {/* Sliders Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                             {CATEGORY_CONFIG.map((group) => (
@@ -352,8 +353,6 @@ export default function CalculatePage() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
-                                                    {/* UPDATED: Manual Input for Weights */}
                                                     <div className="flex items-center gap-1">
                                                         <input
                                                             type="number"
@@ -409,4 +408,13 @@ export default function CalculatePage() {
             />
         </div>
     );
+}
+
+// 2. DEFAULT EXPORT (Wrapper with Suspense)
+export default function CalculatePage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-slate-500">Loading...</div>}>
+      <CalculateContent />
+    </Suspense>
+  );
 }
