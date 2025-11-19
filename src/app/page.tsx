@@ -1,8 +1,9 @@
+// src/app/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import schoolsData from '@/data/final_medical_school_data.json'; // Use correct JSON
+import schoolsData from '@/data/final_medical_school_data.json';
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 import { useAggregates } from '@/lib/useAggregates';
 import RankingsTable from '@/components/RankingsTable';
@@ -13,22 +14,22 @@ export default function HomePage() {
   const [rankedSchools, setRankedSchools] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // NEW: State for In-State Tuition
+  // State for Filters
   const [isInState, setIsInState] = useState(false);
+  const [selectedRole, setSelectedRole] = useState('overall');
 
-  // 1. Update ranking when aggregates or toggle changes
+  // 1. Update ranking when aggregates, role, or in-state toggle changes
   useEffect(() => {
     if (aggregates.length === 0) return;
     
-    const overallAgg = aggregates.find(a => a.role === 'overall');
-    const weights = overallAgg ? overallAgg.weights : DEFAULT_WEIGHTS;
+    // Determine weights based on selected Role
+    const activeAgg = aggregates.find(a => a.role === selectedRole) || aggregates.find(a => a.role === 'overall');
+    const weights = activeAgg ? activeAgg.weights : DEFAULT_WEIGHTS;
     
-    // --- MAPPING LOGIC FOR IN-STATE VS OUT-OF-STATE ---
-    // We do this BEFORE normalization so the ranking is accurate to the cost
+    // Map Data (In-State Logic)
     const mappedData = schoolsData.map((d: any) => {
         const row = { ...d };
         if (isInState) {
-            // Use In-State values if available
             if (row['instate_Total Cost of Attendance'] !== undefined) {
                 row['Total Cost of Attendance'] = row['instate_Total Cost of Attendance'];
             }
@@ -38,11 +39,11 @@ export default function HomePage() {
         }
         return row;
     });
-    // --------------------------------------------------
 
+    // Ranking Logic
     const flattenedFactors = CATEGORY_CONFIG.flatMap(g => g.factors).filter(f => f.type !== 'display_only');
-    
     const stats: Record<string, { min: number, max: number }> = {};
+    
     flattenedFactors.forEach(factor => {
         const values = mappedData.map((d: any) => d[factor.key]).filter((v: any) => v !== null && !isNaN(v));
         if (values.length) {
@@ -95,7 +96,7 @@ export default function HomePage() {
 
     setRankedSchools(scored);
     
-  }, [aggregates, isInState]); // Re-run when toggle changes
+  }, [aggregates, isInState, selectedRole]); // Added selectedRole dependency
 
   const filteredSchools = useMemo(() => {
       if (!searchTerm) return rankedSchools;
@@ -105,6 +106,11 @@ export default function HomePage() {
           (school["canonical_name"] || '').toLowerCase().includes(lowerTerm)
       );
   }, [rankedSchools, searchTerm]);
+
+  // Get current active weights for the table to display in the Peek panel
+  const currentWeights = useMemo(() => {
+    return aggregates.find(a => a.role === selectedRole)?.weights || {};
+  }, [aggregates, selectedRole]);
 
   const totalSubmissions = aggregates.find(a => a.role === 'overall')?.count || 0;
   
@@ -173,7 +179,12 @@ export default function HomePage() {
               <RankingsTable 
                   data={filteredSchools} 
                   isInState={isInState} 
-                  onToggleInState={setIsInState} 
+                  onToggleInState={setIsInState}
+                  // NEW PROPS PASSED DOWN
+                  availableRoles={aggregates}
+                  selectedRole={selectedRole}
+                  onRoleSelect={setSelectedRole}
+                  currentWeights={currentWeights}
               />
           )}
         </div>

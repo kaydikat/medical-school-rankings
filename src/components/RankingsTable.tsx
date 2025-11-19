@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { CATEGORY_CONFIG } from '@/lib/rankingConfig';
-import { ArrowUpDown, ChevronLeft, ChevronRight } from '@/components/Icons';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Eye, ChevronDown } from '@/components/Icons';
 
 const CATEGORY_STYLES: Record<string, string> = {
   'Academics': 'bg-blue-50 text-blue-800 border-blue-200',
@@ -19,12 +19,25 @@ interface RankingsTableProps {
   data: any[];
   isInState?: boolean;
   onToggleInState?: (val: boolean) => void;
+  availableRoles?: any[];
+  selectedRole?: string;
+  onRoleSelect?: (role: string) => void;
+  currentWeights?: Record<string, number>;
 }
 
-export default function RankingsTable({ data, isInState, onToggleInState }: RankingsTableProps) {
+export default function RankingsTable({ 
+  data, 
+  isInState, 
+  onToggleInState, 
+  availableRoles = [], 
+  selectedRole = 'overall', 
+  onRoleSelect,
+  currentWeights 
+}: RankingsTableProps) {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'CustomRank', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [showWeights, setShowWeights] = useState(false);
 
   const sortedData = useMemo(() => {
     let items = [...data];
@@ -58,41 +71,48 @@ export default function RankingsTable({ data, isInState, onToggleInState }: Rank
     setSortConfig({ key, direction });
   };
 
+  // Strict width constants to prevent misalignment
+  const RANK_WIDTH = '60px';
+  const INST_WIDTH = '260px';
+  const HEADER_HEIGHT = '40px';
+
   return (
-    <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden flex flex-col h-full">
+    <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden flex flex-col h-full relative">
+      
+      {/* TABLE SCROLL AREA */}
       <div className="overflow-auto custom-scroll h-full relative">
         <table className="min-w-full divide-y divide-gray-200 border-collapse">
           <thead className="bg-slate-50 shadow-sm">
             <tr>
-              {/* Rank Header (Spans 2 Rows) */}
+              {/* Rank Header (Corner - Highest Z) */}
               <th 
                 rowSpan={2} 
                 onClick={() => requestSort('CustomRank')} 
-                className="sticky top-0 z-50 w-16 bg-blue-50 text-center text-xs font-bold text-blue-800 border-b border-r border-blue-100 shadow hover:bg-blue-100 cursor-pointer"
+                className="sticky top-0 z-[60] bg-blue-50 text-center text-xs font-bold text-blue-800 border-b border-r border-blue-100 shadow hover:bg-blue-100 cursor-pointer"
+                style={{ width: RANK_WIDTH, minWidth: RANK_WIDTH, maxWidth: RANK_WIDTH, left: 0 }}
               >
                 Rank
               </th>
 
-              {/* Institution Header (Spans 2 Rows) */}
+              {/* Institution Header (Corner - Highest Z) */}
               <th 
                 rowSpan={2} 
-                className="sticky left-16 top-0 z-50 w-64 bg-slate-50 text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200 shadow"
+                className="sticky top-0 z-[60] bg-slate-50 text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200 shadow"
+                style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: RANK_WIDTH }}
               >
                 Institution
               </th>
 
-              {/* CATEGORY ROW (Row 1) */}
+              {/* Category Headers (Scroll under corners - Lower Z) */}
               {CATEGORY_CONFIG.map(group => (
                 <th 
                   key={group.id} 
                   colSpan={group.factors.length} 
-                  // FIX: Explicit h-[40px] creates a fixed height we can rely on
-                  className={`sticky top-0 z-50 h-[40px] text-center py-1 text-[10px] uppercase font-bold tracking-widest border-b border-l border-gray-200 whitespace-nowrap ${CATEGORY_STYLES[group.id] || 'bg-gray-50'}`}
+                  className={`sticky top-0 z-40 text-center py-1 text-[10px] uppercase font-bold tracking-widest border-b border-l border-gray-200 whitespace-nowrap ${CATEGORY_STYLES[group.id] || 'bg-gray-50'}`}
+                  style={{ height: HEADER_HEIGHT }}
                 >
                   <div className="relative w-full flex items-center justify-center h-full">
                     <span>{group.id}</span>
-                    
-                    {/* Toggle integrated into header - "Out" removed */}
                     {group.id === 'Finances' && onToggleInState && (
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
                          <button 
@@ -111,17 +131,15 @@ export default function RankingsTable({ data, isInState, onToggleInState }: Rank
               ))}
             </tr>
 
-            {/* FACTORS ROW (Row 2) */}
+            {/* Factor Headers (Scroll under corners - Lower Z) */}
             <tr>
               {CATEGORY_CONFIG.flatMap(g => g.factors).map(col => (
                 <th
                   key={col.key}
                   onClick={() => requestSort(col.key)}
                   title={col.tooltip}
-                  // FIX: top-[39px] overlaps the row above by 1px, eliminating the slit gap.
-                  // z-40 ensures it slides UNDER the category header if scrolled (though here they move together)
-                  className="sticky top-[39px] z-40 px-4 py-2 text-xs font-semibold text-gray-600 bg-slate-50 border-b border-l border-gray-200 cursor-pointer hover:bg-gray-100 hover:text-blue-600 transition-colors select-none group relative"
-                  style={{ textAlign: ['Average GPA','Average MCAT','#n_ranked_specialties','#n_top10_specialties','URM%','Class Size'].includes(col.key) ? 'center' : 'right' }}
+                  className="sticky z-40 px-4 py-2 text-xs font-semibold text-gray-600 bg-slate-50 border-b border-l border-gray-200 cursor-pointer hover:bg-gray-100 hover:text-blue-600 transition-colors select-none group relative"
+                  style={{ top: HEADER_HEIGHT, textAlign: ['Average GPA','Average MCAT','#n_ranked_specialties','#n_top10_specialties','URM%','Class Size'].includes(col.key) ? 'center' : 'right' }}
                 >
                   <div className={`flex items-center gap-1 ${['Average GPA','Average MCAT','#n_ranked_specialties','#n_top10_specialties','URM%','Class Size'].includes(col.key) ? 'justify-center' : 'justify-end'}`}>
                     <span className="border-b border-dotted border-gray-400" title={col.tooltip}>{col.label}</span>
@@ -134,14 +152,26 @@ export default function RankingsTable({ data, isInState, onToggleInState }: Rank
           <tbody className="bg-white divide-y divide-gray-200">
             {paginatedData.map((row: any, rowIndex: number) => (
               <tr key={rowIndex} className="hover:bg-blue-50 transition-colors">
-                <td className="sticky left-0 z-30 bg-white text-center font-bold text-blue-600 border-r border-gray-200 py-3 text-sm shadow group-hover:bg-blue-50">
+                
+                {/* Rank Body Cell */}
+                <td 
+                  className="sticky z-30 bg-white text-center font-bold text-blue-600 border-r border-gray-200 py-3 text-sm shadow group-hover:bg-blue-50"
+                  style={{ width: RANK_WIDTH, minWidth: RANK_WIDTH, maxWidth: RANK_WIDTH, left: 0 }}
+                >
                   {row.CustomRank}
                 </td>
-                <td className="sticky left-16 z-30 bg-white text-left px-4 py-3 border-r border-gray-200 shadow group-hover:bg-blue-50">
-                  <div className="font-medium text-gray-900 text-sm truncate w-64" title={row.AAMC_Institution}>
+
+                {/* Institution Body Cell */}
+                <td 
+                  className="sticky z-30 bg-white text-left px-4 py-3 border-r border-gray-200 shadow group-hover:bg-blue-50"
+                  style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: RANK_WIDTH }}
+                >
+                  <div className="font-medium text-gray-900 text-sm truncate" title={row.AAMC_Institution}>
                     {row.AAMC_Institution || row.canonical_name}
                   </div>
                 </td>
+
+                {/* Data Cells */}
                 {CATEGORY_CONFIG.flatMap(g => g.factors).map((col, i) => (
                   <td 
                     key={i} 
@@ -166,22 +196,75 @@ export default function RankingsTable({ data, isInState, onToggleInState }: Rank
           </tbody>
         </table>
       </div>
-      
-      {/* PAGINATION */}
-      <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between flex-none z-40 relative">
-        <div className="text-xs text-gray-500 hidden sm:block">
-          Showing {((currentPage-1)*itemsPerPage)+1} - {Math.min(currentPage*itemsPerPage, data.length)} of {data.length}
+
+      {/* WEIGHTS "PEEK" PANEL */}
+      {showWeights && currentWeights && (
+        <div className="bg-slate-800 text-white border-t border-slate-600 p-4 absolute bottom-[52px] left-0 right-0 z-50 shadow-2xl animate-in slide-in-from-bottom-2">
+            <div className="flex justify-between items-start mb-3">
+                <h4 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+                    Weights for: <span className="text-white">{selectedRole === 'overall' ? 'Overall Average' : selectedRole}</span>
+                </h4>
+                <button onClick={() => setShowWeights(false)} className="text-slate-400 hover:text-white"><ChevronDown className="w-4 h-4" /></button>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+                {Object.entries(currentWeights)
+                    .filter(([_, val]) => val > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([key, val]) => (
+                        <div key={key} className="flex items-center gap-2">
+                            <span className="text-slate-400">{key}:</span>
+                            <span className="font-bold text-emerald-400">{val}%</span>
+                        </div>
+                    ))
+                }
+            </div>
         </div>
+      )}
+
+      {/* FOOTER BAR */}
+      <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between flex-none z-50 relative gap-4 sm:gap-0">
+        
+        {/* LEFT: Role Selector & Weights Toggle */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            {onRoleSelect && availableRoles && availableRoles.length > 0 && (
+                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg p-1 shadow-sm">
+                    <select 
+                        value={selectedRole} 
+                        onChange={(e) => onRoleSelect(e.target.value)}
+                        className="text-xs font-medium text-slate-700 bg-transparent border-none focus:ring-0 cursor-pointer pl-2 pr-8 py-1"
+                    >
+                        {availableRoles.map(agg => (
+                            <option key={agg.role} value={agg.role}>
+                                {agg.displayRole}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="w-px h-4 bg-gray-200"></div>
+                    <button 
+                        onClick={() => setShowWeights(!showWeights)}
+                        className={`p-1 rounded hover:bg-gray-100 transition-colors ${showWeights ? 'text-blue-600 bg-blue-50' : 'text-slate-400'}`}
+                        title="View Weights"
+                    >
+                        {showWeights ? <ChevronDown className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                </div>
+            )}
+        </div>
+
+        {/* RIGHT: Pagination */}
         <div className="flex items-center gap-3">
-          <select value={itemsPerPage} onChange={e => {setItemsPerPage(Number(e.target.value)); setCurrentPage(1)}} className="text-xs border rounded p-1">
+          <div className="text-xs text-gray-500 hidden sm:block">
+            {((currentPage-1)*itemsPerPage)+1}-{Math.min(currentPage*itemsPerPage, data.length)} of {data.length}
+          </div>
+          <select value={itemsPerPage} onChange={e => {setItemsPerPage(Number(e.target.value)); setCurrentPage(1)}} className="text-xs border rounded p-1 shadow-sm">
             <option value={10}>10 / page</option>
             <option value={20}>20 / page</option>
             <option value={50}>50 / page</option>
             <option value={9999}>All</option>
           </select>
-          <div className="flex">
+          <div className="flex shadow-sm">
             <button disabled={currentPage===1} onClick={()=>setCurrentPage(p=>p-1)} className="px-2 py-1 border rounded-l bg-white hover:bg-gray-50 disabled:opacity-50"><ChevronLeft className="w-4 h-4"/></button>
-            <span className="px-3 py-1 border-t border-b bg-white text-xs font-medium pt-2">{currentPage}</span>
+            <span className="px-3 py-1 border-t border-b bg-white text-xs font-medium pt-2 min-w-[2rem] text-center">{currentPage}</span>
             <button disabled={currentPage>=Math.ceil(data.length/itemsPerPage)} onClick={()=>setCurrentPage(p=>p+1)} className="px-2 py-1 border rounded-r bg-white hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="w-4 h-4"/></button>
           </div>
         </div>
