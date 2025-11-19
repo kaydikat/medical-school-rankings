@@ -123,7 +123,7 @@ export default function HomePage() {
             <div className="flex items-center gap-8">
                 <Link href="/" className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                     <GraduationCap className="w-8 h-8 text-blue-600" />
-                    Med School Rankings
+                    Medical School Rankings
                 </Link>
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
                     <Link href="/" className="text-blue-600">Home</Link>
@@ -164,9 +164,9 @@ export default function HomePage() {
       <div className="max-w-[1600px] mx-auto px-4 mt-6 flex-1 min-h-0 flex flex-col w-full">
         <div className="flex items-center justify-between mb-4 flex-none">
             <div>
-                <h2 className="text-xl font-bold text-slate-800">Overall Crowdsourced Rankings</h2>
+                <h2 className="text-xl font-bold text-slate-800">Overall Crowdsourced Rankings (2025)</h2>
                 <p className="text-sm text-slate-500">
-                    Ranked by the aggregated priorities of contributors as of {new Date().getFullYear()}.
+                    Ranked by the aggregated priorities of all contributors.
                 </p>
             </div>
             <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wide">
