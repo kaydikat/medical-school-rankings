@@ -8,12 +8,15 @@ import { supabase } from '@/lib/supabase';
 import { ROLE_UI_TO_DB } from '@/lib/roleMap';
 import { XCircle, UploadCloud, RefreshCw, GraduationCap } from '@/components/Icons';
 
-// Schema for the initial form
+// Updated Schema: Added 'consent' field which must be true
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   roleUi: z.string().min(1, 'Please select a role'),
   mcat: z.string().optional(),
   gpa: z.string().optional(),
+  consent: z.literal(true, {
+    errorMap: () => ({ message: "You must agree to the data usage policy." }),
+  }),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -25,25 +28,27 @@ interface SubmitModalProps {
 }
 
 export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalProps) {
-  // State to track which "screen" of the modal we are on
   const [step, setStep] = useState<'FORM' | 'OTP'>('FORM');
   const [emailForOtp, setEmailForOtp] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   
-  // React Hook Form
   const {
     register,
     handleSubmit,
     getValues,
     formState: { errors },
     reset
-  } = useForm<FormData>({ resolver: zodResolver(formSchema) });
+  } = useForm<FormData>({ 
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      consent: false, // Default to unchecked
+    }
+  });
 
   if (!isOpen) return null;
 
-  // STEP 1: Request OTP
   const onRequestOtp = async (data: FormData) => {
     setMessage(null);
     setIsLoading(true);
@@ -60,10 +65,8 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
     }
 
     try {
-      // Check if we already have a session
       const { data: { session } } = await supabase.auth.getSession();
 
-      // If already logged in as this user, skip OTP and just save
       if (session?.user?.email === data.email) {
          console.log("User already verified. Skipping email step.");
          setMessage({ text: 'You are already verified! Saving now...', type: 'success' });
@@ -71,17 +74,13 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
          return;
       }
 
-      // Otherwise, send the OTP
       const { error } = await supabase.auth.signInWithOtp({
         email: data.email,
-        options: {
-          shouldCreateUser: true, // Create user if they don't exist
-        }
+        options: { shouldCreateUser: true }
       });
 
       if (error) throw error;
 
-      // Move to Step 2
       setEmailForOtp(data.email);
       setStep('OTP');
       setMessage({ text: `Code sent to ${data.email}`, type: 'success' });
@@ -93,13 +92,10 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
     }
   };
 
-  // STEP 2: Verify OTP and Save Data
   const onVerifyAndSave = async () => {
     setMessage(null);
     setIsLoading(true);
-
     try {
-      // 1. Verify Code
       const { error: verifyError } = await supabase.auth.verifyOtp({
         email: emailForOtp,
         token: otpCode,
@@ -107,8 +103,6 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
       });
 
       if (verifyError) throw verifyError;
-
-      // 2. Save Data (Now that we are authenticated)
       const formData = getValues();
       await saveData(formData);
 
@@ -118,10 +112,8 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
     }
   };
 
-  // Helper to actually insert the row
   const saveData = async (data: FormData) => {
     const roleDb = ROLE_UI_TO_DB[data.roleUi];
-
     const { error } = await supabase
       .from('submissions')
       .upsert({
@@ -130,13 +122,12 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
         mcat: data.mcat ? Number(data.mcat) : null,
         gpa: data.gpa ? Number(data.gpa) : null,
         weights, 
-        verified: true, // It is verified now!
+        verified: true,
       }, { onConflict: 'email' });
 
     if (error) throw error;
 
     setMessage({ text: 'Success! Rankings saved.', type: 'success' });
-    
     setTimeout(() => {
       reset();
       setStep('FORM');
@@ -148,11 +139,9 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
   };
 
   return (
-    // FIXED: Changed z-50 to z-[100] to sit above the table headers (which are z-[60])
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100" onClick={(e) => e.stopPropagation()}>
         
-        {/* Header */}
         <div className="bg-slate-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-emerald-600" />
@@ -164,12 +153,10 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
         </div>
 
         <div className="p-6">
-          
-          {/* STEP 1: FORM */}
           {step === 'FORM' && (
             <form onSubmit={handleSubmit(onRequestOtp)} className="space-y-4">
               <p className="text-sm text-slate-500 mb-4">
-                Submit your weights. We will send a one-time code to your email to verify you.
+                Submit your weights to help build the crowdsourced rankings.
               </p>
               
               <div>
@@ -200,17 +187,31 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
                 </div>
               </div>
 
+              {/* NEW: Research Consent Checkbox */}
+              <div className="flex items-start gap-2 pt-2">
+                <input 
+                  type="checkbox" 
+                  id="consent"
+                  {...register('consent')}
+                  className="mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+                />
+                <label htmlFor="consent" className="text-xs text-slate-600 cursor-pointer leading-tight">
+                  I agree to contribute my de-identified submission data for inclusion in the public dataset. I understand this data may be used for general academic research purposes.
+                </label>
+              </div>
+              {errors.consent && <p className="text-red-500 text-xs">{errors.consent.message}</p>}
+
               <button 
                 type="submit" 
                 disabled={isLoading} 
-                className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex justify-center items-center gap-2"
+                className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Send Verification Code'}
               </button>
             </form>
           )}
 
-          {/* STEP 2: OTP ENTRY */}
+          {/* Step 2 (OTP) remains unchanged... */}
           {step === 'OTP' && (
             <div className="space-y-4">
               <div className="text-center">
@@ -245,7 +246,6 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
             </div>
           )}
 
-          {/* Global Message */}
           {message && (
             <div className={`mt-4 p-3 rounded text-sm font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               {message.text}
