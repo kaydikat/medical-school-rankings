@@ -1,3 +1,4 @@
+// src/app/calculate/page.tsx
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
@@ -9,7 +10,7 @@ import RankingsTable from '@/components/RankingsTable';
 import SubmitModal from '@/components/SubmitModal';
 import { 
   GraduationCap, Search, SlidersIcon, Save, Percent, 
-  XCircle, RefreshCw, UploadCloud, Info, MoreHorizontal, FileText, Upload 
+  XCircle, RefreshCw, UploadCloud, Info, MoreHorizontal, FileText, Upload, Menu, X, ChevronUp, ChevronDown 
 } from '@/components/Icons';
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -20,7 +21,7 @@ const CATEGORY_STYLES: Record<string, string> = {
   'Student Body': 'bg-pink-50 text-pink-800 border-pink-200',
 };
 
-// 1. INTERNAL COMPONENT: Contains all the logic
+// Internal Component using hooks (must be wrapped in Suspense)
 function CalculateContent() {
     const searchParams = useSearchParams();
     const openParam = searchParams.get('open');
@@ -32,6 +33,7 @@ function CalculateContent() {
     const [isInState, setIsInState] = useState(false);
     
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -226,16 +228,17 @@ function CalculateContent() {
     const totalWeight = Object.values(weights).reduce((a,b) => a+b, 0);
 
     return (
-        <div className="min-h-screen pb-12 flex flex-col h-screen">
+        <div className="min-h-screen pb-12 flex flex-col"> 
             {/* HEADER */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm flex-none">
+            {/* FIX: Increased z-index to z-[100] to always cover table headers */}
+            <div className="bg-white border-b border-gray-200 sticky top-0 z-[100] shadow-sm flex-none">
                 <div className="max-w-[1600px] mx-auto px-4 py-3">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-8">
+                        <div className="flex items-center justify-between w-full md:w-auto gap-8">
                             <Link href="/" className="flex items-center gap-2 text-decoration-none">
                                 <GraduationCap className="w-8 h-8 text-blue-600" />
                                 <h1 className="text-2xl font-bold text-slate-800">
-                                    Med School Rankings
+                                    Medical School Rankings
                                 </h1>
                             </Link>
                             <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -243,10 +246,30 @@ function CalculateContent() {
                                 <Link href="/calculate?open=true" className="text-blue-600">Customize</Link>
                                 <Link href="/about" className="hover:text-blue-600 transition-colors">About</Link>
                             </nav>
+                             {/* Mobile Nav Toggle */}
+                           <div className="flex items-center gap-4 md:hidden">
+                              <button 
+                                    onClick={() => setShowRankingsPanel(!showRankingsPanel)}
+                                    className={`flex items-center justify-center p-2 rounded-full shadow-md transition-colors ${
+                                        showRankingsPanel 
+                                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                                    }`}
+                                    title={showRankingsPanel ? "Close Customization" : "Customize Rankings"}
+                                 >
+                                    <SlidersIcon className="w-5 h-5" />
+                                 </button>
+                                <button 
+                                    className="text-slate-600" 
+                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                >
+                                    {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                                </button>
+                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <div className="relative hidden md:block w-64">
+                        <div className="hidden md:flex items-center gap-3">
+                            <div className="relative w-64">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <Search className="h-4 w-4 text-gray-400" />
                                 </div>
@@ -272,37 +295,62 @@ function CalculateContent() {
                         </div>
                     </div>
                 </div>
+                 {/* Mobile Menu Content */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden bg-white border-t border-gray-200 p-4 shadow-lg absolute top-full left-0 w-full z-[101]">
+                        <nav className="flex flex-col gap-4 text-sm font-medium text-slate-600">
+                            <Link href="/" className="hover:text-blue-600" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+                            <Link href="/calculate?open=true" className="text-blue-600" onClick={() => setIsMobileMenuOpen(false)}>Customize</Link>
+                            <Link href="/about" className="hover:text-blue-600" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
+                            {/* Mobile Search */}
+                            <div className="relative mt-2">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search className="h-4 w-4 text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    placeholder="Search schools..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </nav>
+                    </div>
+                )}
             </div>
 
             {/* WEIGHTS PANEL */}
             {showRankingsPanel && (
                 <div className="bg-slate-50 border-b border-gray-200 shadow-inner animate-in slide-in-from-top-2 duration-200 flex-none">
                     <div className="max-w-[1600px] mx-auto px-4 py-6">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
                             <div>
                                 <h3 className="font-bold text-slate-800 text-lg">Custom Ranking Weights</h3>
                                 <p className="text-sm text-slate-500">Adjust priorities to generate your own personalized list.</p>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 flex-wrap">
                                 <div className={`text-sm font-bold px-4 py-1.5 rounded-full border ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                                     Total Weight: {totalWeight}%
                                 </div>
                                 
                                 <button onClick={() => setIsSubmitModalOpen(true)} className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 font-medium shadow-sm transition-colors">
-                                    <UploadCloud className="w-3 h-3" /> Contribute
+                                    <UploadCloud className="w-4 h-4 md:w-3 md:h-3" /> <span className="hidden md:inline">Contribute</span><span className="md:hidden">Contribute</span>
                                 </button>
 
-                                <button onClick={rescaleWeights} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
-                                    <Percent className="w-3 h-3" /> Rescale to 100%
-                                </button>
+                                <div className="hidden md:flex items-center gap-4">
+                                    <button onClick={rescaleWeights} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                                        <Percent className="w-3 h-3" /> Rescale to 100%
+                                    </button>
 
-                                <button onClick={setWeightsToZero} className="text-sm text-red-600 hover:text-red-800 flex items-center gap-1 font-medium">
-                                    <XCircle className="w-3 h-3" /> Zero
-                                </button>
+                                    <button onClick={setWeightsToZero} className="text-sm text-red-600 hover:text-red-800 flex items-center gap-1 font-medium">
+                                        <XCircle className="w-3 h-3" /> Zero
+                                    </button>
 
-                                <button onClick={() => setWeights(DEFAULT_WEIGHTS)} className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
-                                    <RefreshCw className="w-3 h-3" /> Reset
-                                </button>
+                                    <button onClick={() => setWeights(DEFAULT_WEIGHTS)} className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
+                                        <RefreshCw className="w-3 h-3" /> Reset
+                                    </button>
+                                </div>
 
                                 <div className="relative" ref={menuRef}>
                                     <button 
@@ -315,9 +363,20 @@ function CalculateContent() {
                                     {showDownloadMenu && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-100">
                                             <div className="py-1">
+                                                 <button onClick={rescaleWeights} className="md:hidden w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
+                                                    <Percent className="w-4 h-4" /> Rescale 100%
+                                                </button>
+                                                <button onClick={setWeightsToZero} className="md:hidden w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2">
+                                                    <XCircle className="w-4 h-4" /> Zero Weights
+                                                </button>
+                                                <button onClick={() => setWeights(DEFAULT_WEIGHTS)} className="md:hidden w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                                    <RefreshCw className="w-4 h-4" /> Reset
+                                                </button>
+                                                <div className="h-px bg-gray-100 md:hidden my-1"></div>
+
                                                 <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                                                 <button onClick={handleDownloadRankings} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4" /> Download CSV
+                                                    <FileText className="w-4 h-4" /> Download Rankings
                                                 </button>
                                                 <button onClick={handleDownloadWeights} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
                                                     <Save className="w-4 h-4" /> Download Weights
@@ -382,23 +441,32 @@ function CalculateContent() {
                 </div>
             )}
 
-            <div className="max-w-[1600px] mx-auto px-4 mt-6 flex-1 min-h-0 flex flex-col w-full">
+            {/* TABLE CONTAINER */}
+            <div className="max-w-[1600px] mx-auto px-4 mt-6 w-full"> 
                 <div className="flex items-center justify-between mb-4 flex-none">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Your Personalized Rankings</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-slate-800">Your Personalized Rankings</h2>
+                            {/* Mobile Toggle Button (NEW) */}
+                            <button 
+                                onClick={() => setShowRankingsPanel(!showRankingsPanel)}
+                                className="md:hidden p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title={showRankingsPanel ? "Hide Customization" : "Show Customization"}
+                            >
+                                {showRankingsPanel ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                            </button>
+                        </div>
                         <p className="text-sm text-slate-500">Based on your unique weights and preferences ({isInState ? 'In-State' : 'Out-of-State'} Costs)</p>
                     </div>
                     <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wide">
                         {filteredData.length} Schools
                     </div>
                 </div>
-                <div className="flex-1 min-h-0">
-                    <RankingsTable 
-                        data={filteredData} 
-                        isInState={isInState} 
-                        onToggleInState={setIsInState} 
-                    />
-                </div>
+                <RankingsTable 
+                    data={filteredData} 
+                    isInState={isInState} 
+                    onToggleInState={setIsInState} 
+                />
             </div>
 
             <SubmitModal 
@@ -410,7 +478,7 @@ function CalculateContent() {
     );
 }
 
-// 2. DEFAULT EXPORT (Wrapper with Suspense)
+// Default export: Wraps the content in Suspense to prevent build errors from useSearchParams()
 export default function CalculatePage() {
   return (
     <Suspense fallback={<div className="h-screen flex items-center justify-center text-slate-500">Loading...</div>}>

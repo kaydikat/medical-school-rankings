@@ -72,10 +72,9 @@ export default function RankingsTable({
   };
 
   // Strict width constants
-  const RANK_WIDTH = '60px';
-  const INST_WIDTH = '260px';
+  const RANK_WIDTH = 'var(--rank-w)';
+  const INST_WIDTH = 'var(--inst-w)';
   const HEADER_HEIGHT = '40px';
-  // NEW: Overlap the second row by 1px to fix the slit
   const SECOND_ROW_TOP = '39px'; 
 
   return (
@@ -86,21 +85,22 @@ export default function RankingsTable({
         <table className="min-w-full divide-y divide-gray-200 border-collapse">
           <thead className="bg-slate-50 shadow-sm">
             <tr>
-              {/* Rank Header (Corner - Highest Z) */}
+              {/* Rank Header */}
               <th 
                 rowSpan={2} 
                 onClick={() => requestSort('CustomRank')} 
-                className="sticky top-0 z-[60] bg-blue-50 text-center text-xs font-bold text-blue-800 border-b border-r border-blue-100 shadow hover:bg-blue-100 cursor-pointer"
+                className="sticky top-0 z-[61] bg-blue-50 text-center text-xs font-bold text-blue-800 border-b border-r border-blue-100 shadow hover:bg-blue-100 cursor-pointer"
                 style={{ width: RANK_WIDTH, minWidth: RANK_WIDTH, maxWidth: RANK_WIDTH, left: 0 }}
               >
                 Rank
               </th>
 
-              {/* Institution Header (Corner - Highest Z) */}
+              {/* Institution Header */}
               <th 
                 rowSpan={2} 
                 className="sticky top-0 z-[60] bg-slate-50 text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-r border-gray-200 shadow"
-                style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: RANK_WIDTH }}
+                // FIX: Use calc(X - 1px) for guaranteed 1px visual overlap
+                style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: `calc(${RANK_WIDTH} - 1px)` }}
               >
                 Institution
               </th>
@@ -110,7 +110,6 @@ export default function RankingsTable({
                 <th 
                   key={group.id} 
                   colSpan={group.factors.length} 
-                  // FIX: Increased z-index to 50 (was 40) so it sits ON TOP of the second row
                   className={`sticky top-0 z-50 text-center py-1 text-[10px] uppercase font-bold tracking-widest border-b border-l border-gray-200 whitespace-nowrap ${CATEGORY_STYLES[group.id] || 'bg-gray-50'}`}
                   style={{ height: HEADER_HEIGHT }}
                 >
@@ -141,7 +140,6 @@ export default function RankingsTable({
                   key={col.key}
                   onClick={() => requestSort(col.key)}
                   title={col.tooltip}
-                  // FIX: Use SECOND_ROW_TOP (39px) to create 1px overlap. Z-index is 40 (lower than top row's 50)
                   className="sticky z-40 px-4 py-2 text-xs font-semibold text-gray-600 bg-slate-50 border-b border-l border-gray-200 cursor-pointer hover:bg-gray-100 hover:text-blue-600 transition-colors select-none group relative"
                   style={{ top: SECOND_ROW_TOP, textAlign: ['Average GPA','Average MCAT','#n_ranked_specialties','#n_top10_specialties','URM%','Class Size'].includes(col.key) ? 'center' : 'right' }}
                 >
@@ -156,11 +154,20 @@ export default function RankingsTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {paginatedData.map((row: any, rowIndex: number) => (
               <tr key={rowIndex} className="hover:bg-blue-50 transition-colors">
-                <td className="sticky left-0 z-30 bg-white text-center font-bold text-blue-600 border-r border-gray-200 py-3 text-sm shadow group-hover:bg-blue-50" style={{ width: RANK_WIDTH, minWidth: RANK_WIDTH, maxWidth: RANK_WIDTH, left: 0 }}>
+                {/* Rank Body Cell */}
+                <td 
+                   className="sticky left-0 z-[31] bg-white text-center font-bold text-blue-600 border-r border-gray-200 py-3 text-sm shadow group-hover:bg-blue-50" 
+                   style={{ width: RANK_WIDTH, minWidth: RANK_WIDTH, maxWidth: RANK_WIDTH, left: 0 }}
+                >
                   {row.CustomRank}
                 </td>
-                <td className="sticky left-16 z-30 bg-white text-left px-4 py-3 border-r border-gray-200 shadow group-hover:bg-blue-50" style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: RANK_WIDTH }}>
-                  <div className="font-medium text-gray-900 text-sm truncate w-64" title={row.AAMC_Institution}>
+                {/* Institution Body Cell */}
+                <td 
+                  className="sticky z-30 bg-white text-left px-4 py-3 border-r border-gray-200 shadow group-hover:bg-blue-50" 
+                  // FIX: Use calc() to force a 1px overlap
+                  style={{ width: INST_WIDTH, minWidth: INST_WIDTH, maxWidth: INST_WIDTH, left: `calc(${RANK_WIDTH} - 1px)` }}
+                >
+                  <div className="font-medium text-gray-900 text-sm whitespace-normal break-words leading-tight" title={row.AAMC_Institution}>
                     {row.AAMC_Institution || row.canonical_name}
                   </div>
                 </td>
@@ -187,10 +194,10 @@ export default function RankingsTable({
 
       {/* WEIGHTS "PEEK" PANEL */}
       {showWeights && currentWeights && (
-        <div className="bg-slate-800 text-white border-t border-slate-600 p-4 absolute bottom-[52px] left-0 right-0 z-50 shadow-2xl animate-in slide-in-from-bottom-2">
+        <div className="bg-slate-800 text-white border-t border-slate-600 p-4 absolute bottom-[52px] left-0 right-0 z-[100] shadow-2xl animate-in slide-in-from-bottom-2">
             <div className="flex justify-between items-start mb-3">
                 <h4 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                    Weights for: <span className="text-white">{selectedRole === 'overall' ? 'Overall Average' : selectedRole}</span>
+                    Weights for: <span className="text-white">{selectedRole === 'overall' ? 'All' : selectedRole}</span>
                 </h4>
                 <button onClick={() => setShowWeights(false)} className="text-slate-400 hover:text-white"><ChevronDown className="w-4 h-4" /></button>
             </div>
