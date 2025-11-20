@@ -8,15 +8,21 @@ import { supabase } from '@/lib/supabase';
 import { ROLE_UI_TO_DB } from '@/lib/roleMap';
 import { XCircle, UploadCloud, RefreshCw, GraduationCap } from '@/components/Icons';
 
-// Updated Schema: Added 'consent' field which must be true
+// Schema for the initial form
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   roleUi: z.string().min(1, 'Please select a role'),
   mcat: z.string().optional(),
   gpa: z.string().optional(),
-  consent: z.literal(true, {
-    errorMap: () => ({ message: "You must agree to the data usage policy." }),
-  }),
+  
+  // FIX STARTS HERE
+  // 1. Define the consent field as a boolean that MUST be true
+  consent: z.boolean(), 
+  
+// 2. Refine the ENTIRE schema to check if consent is true, and provide the error
+}).refine(data => data.consent === true, {
+  message: "You must agree to the data usage policy.", // The custom error message
+  path: ['consent'], // Apply this error specifically to the consent field
 });
 
 type FormData = z.infer<typeof formSchema>;
