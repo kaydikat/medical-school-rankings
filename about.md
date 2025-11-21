@@ -4,7 +4,7 @@ Medical school rankings have entered a confusing new era. After Harvard and othe
 
 Yes, all accredited U.S. medical schools produce qualified physicians. But dismissing rankings entirely ignores their practical value: helping students identify target programs with high quality clinical training and cutting-edge research; encouraging schools to innovate to attract top applicants; and providing evidence of program selectivity to residency directors or future employers.
 
-Here's the paradox: just as medical schools moved away from rankings, residency programs began leaning *more heavily* on medical school prestige. USMLE Step 1 [shifted to pass/fail](https://www.doximity.com/articles/210fde6e-2ce2-43c8-b35b-c3a2b55f5903), eliminating a key metric. Now residency directors [increasingly rely on the reputation of applicants' medical schools](https://doi.org/10.1016/j.wneu.2020.07.053) to evaluate candidates. Medical schools want to de-emphasize rankings precisely when rankings matter most to their graduates' career prospects.
+Here's the paradox: just as medical schools moved away from rankings, residency programs began leaning *more heavily* on medical school prestige. USMLE Step 1 [shifted to pass/fail](https://www.doximity.com/articles/210fde6e-2ce2-43c8-b35b-c3a2b55f5903), eliminating a key metric. Now residency directors [increasingly rely on the reputation of applicants' medical schools](https://doi.org/10.1016/j.wneu.2020.07.053) to evaluate candidates. Medical schools want to de-emphasize rankings precisely when reputation matters most to their graduates' career prospects.
 
 ## The Case for Reformed Rankings
 
