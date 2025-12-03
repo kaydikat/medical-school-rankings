@@ -1,4 +1,3 @@
-// src/app/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -242,7 +241,7 @@ export default function HomePage() {
           </div>
         </div>
         
-        {/* Mobile Menu Content - Z-index is automatically higher than table since it's nested under z-100 parent */}
+        {/* Mobile Menu Content */}
         {isMobileMenuOpen && (
             <div className="md:hidden bg-white border-t border-gray-200 p-4 shadow-lg absolute top-full left-0 w-full z-10">
                 <nav className="flex flex-col gap-4 text-sm font-medium text-slate-600">
@@ -271,7 +270,9 @@ export default function HomePage() {
       <div className="max-w-[1600px] mx-auto px-4 mt-6 w-full">
         <div className="flex items-center justify-between mb-4 flex-none">
             <div>
-                <h2 className="text-xl font-bold text-slate-800">Overall Crowdsourced Rankings</h2>
+                {/* UPDATED TITLE */}
+                <h2 className="text-xl font-bold text-slate-800">Medical School Rankings ({new Date().getFullYear()})</h2>
+                {/* UPDATED SUBTITLE */}
                 <p className="text-sm text-slate-500">
                     Ranked by the aggregated priorities of all contributors.
                 </p>
@@ -294,6 +295,7 @@ export default function HomePage() {
                   selectedRole={selectedRole}
                   onRoleSelect={setSelectedRole}
                   currentWeights={currentWeights}
+                  submissionCount={submissionCount}
               />
           )}
         </div>
