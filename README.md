@@ -1,9 +1,9 @@
 ## Final Report
 1. **Summary of the project (one to three sentences).** Shown below.
 2. **Diagrams, demo video or gif, etc.** Shown below.
-3. **What did you learn in this project?** I learned how to use third party front-end and back-end applications such as Supabase and Vercel to help me with my project. They were super useful when it came to deploying my project and ensuring it was secure.
+3. **What did you learn in this project?** I learned how to use third party front-end and back-end applications such as Supabase and Vercel to help me with my project. They were super useful when it came to deploying my project and ensuring it was secure. I also got better with working with databases and making websites in general.
 4. **How did you use AI to assist in building your project? Please, describe.** I used Gemini 3 to create most of the frontend and it was super useful.
-5. **Discuss why this project is interesting to you!** My husband is a current medical student at NYU and I disagreed with Admit.org about his school's rankings.
+5. **Discuss why this project is interesting to you!** My husband is a current medical student at NYU and I disagreed with Admit.org about his school's rankings, so I wanted to make my own.
 6. **Key learnings from the project.**
 - Building a website is easy, especially if you use AI.
 - Marketing and getting others to use your website is hard.
