@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/lib/supabase';
 import { ROLE_UI_TO_DB } from '@/lib/roleMap';
-import { XCircle, UploadCloud, RefreshCw, GraduationCap } from '@/components/Icons';
+import { CATEGORY_CONFIG } from '@/lib/rankingConfig'; 
+import { XCircle, UploadCloud, RefreshCw, GraduationCap, ChevronRight, ChevronLeft } from '@/components/Icons';
 
 // Schema for the initial form
 const formSchema = z.object({
@@ -34,7 +35,8 @@ interface SubmitModalProps {
 }
 
 export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalProps) {
-  const [step, setStep] = useState<'FORM' | 'OTP'>('FORM');
+  // Updated State: Now includes 'REVIEW' step
+  const [step, setStep] = useState<'REVIEW' | 'FORM' | 'OTP'>('REVIEW');
   const [emailForOtp, setEmailForOtp] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -49,32 +51,41 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
   } = useForm<FormData>({ 
     resolver: zodResolver(formSchema),
     defaultValues: {
-      consent: false, // Default to unchecked
+      consent: false,
     }
   });
 
   if (!isOpen) return null;
 
+  const getLabelForKey = (key: string) => {
+    for (const group of CATEGORY_CONFIG) {
+      const factor = group.factors.find(f => f.key === key);
+      if (factor) return factor.label;
+    }
+    return key;
+  };
+
+  const totalWeight = Object.values(weights).reduce((sum, val) => sum + (val || 0), 0);
+
+  // Handlers
+  const handleReviewConfirm = () => {
+    if (totalWeight !== 100) {
+      setMessage({ text: `Weights sum to ${totalWeight}%. Must be 100%.`, type: 'error' });
+      return;
+    }
+    setMessage(null);
+    setStep('FORM');
+  };
+
   const onRequestOtp = async (data: FormData) => {
     setMessage(null);
     setIsLoading(true);
-
-    // VALIDATION: Weights must sum to 100
-    const totalWeight = Object.values(weights).reduce((sum, val) => sum + (val || 0), 0);
-    if (totalWeight !== 100) {
-      setMessage({ 
-        text: `Error: Weights sum to ${totalWeight}%. They must equal 100%.`, 
-        type: 'error' 
-      });
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user?.email === data.email) {
-         console.log("User already verified. Skipping email step.");
+         console.log("User already verified.");
          setMessage({ text: 'You are already verified! Saving now...', type: 'success' });
          await saveData(data);
          return;
@@ -89,7 +100,6 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
 
       setEmailForOtp(data.email);
       setStep('OTP');
-      setMessage({ text: `Code sent to ${data.email}`, type: 'success' });
 
     } catch (error: any) {
       setMessage({ text: error.message, type: 'error' });
@@ -113,7 +123,7 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
       await saveData(formData);
 
     } catch (error: any) {
-      setMessage({ text: 'Invalid code or error saving. ' + error.message, type: 'error' });
+      setMessage({ text: 'Invalid code. ' + error.message, type: 'error' });
       setIsLoading(false);
     }
   };
@@ -136,7 +146,7 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
     setMessage({ text: 'Success! Rankings saved.', type: 'success' });
     setTimeout(() => {
       reset();
-      setStep('FORM');
+      setStep('REVIEW'); // Reset to first step
       setOtpCode('');
       setMessage(null);
       onClose();
@@ -148,21 +158,63 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100" onClick={(e) => e.stopPropagation()}>
         
-        <div className="bg-slate-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        {/* Header */}
+        <div className="bg-slate-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-none">
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-emerald-600" />
-            {step === 'FORM' ? 'Contribute Rankings' : 'Verify Email'}
+            {step === 'REVIEW' ? 'Review Contribution' : step === 'FORM' ? 'Contribute Rankings' : 'Verify Email'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <XCircle className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6">
+        {/* Scrollable Content Area */}
+        <div className="p-6 overflow-y-auto">
+          
+          {/* STEP 1: REVIEW WEIGHTS */}
+          {step === 'REVIEW' && (
+            <div className="space-y-6">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <p className="text-xs font-bold text-slate-500 uppercase mb-3">Your Custom Weights:</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(weights)
+                    .filter(([_, val]) => val > 0)
+                    .map(([key, val]) => (
+                      <div key={key} className="text-xs bg-white px-2.5 py-1.5 rounded border border-slate-200 text-slate-700 shadow-sm">
+                        <span className="font-medium">{getLabelForKey(key)}:</span> <b>{val}%</b>
+                      </div>
+                    ))
+                  }
+                </div>
+                <div className={`mt-4 text-sm font-bold flex items-center gap-2 ${totalWeight === 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <span>Total: {totalWeight}%</span>
+                    {totalWeight !== 100 && <span className="text-xs font-normal text-red-500">(Must be 100%)</span>}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                    onClick={onClose}
+                    className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                    Adjust Weights
+                </button>
+                <button 
+                    onClick={handleReviewConfirm}
+                    className="flex-1 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                    Confirm & Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: USER FORM */}
           {step === 'FORM' && (
             <form onSubmit={handleSubmit(onRequestOtp)} className="space-y-4">
               <p className="text-sm text-slate-500 mb-4">
-                Submit your weights to help build the crowdsourced rankings.
+                We will send a one-time code to verify you.
               </p>
               
               <div>
@@ -207,17 +259,26 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
               </div>
               {errors.consent && <p className="text-red-500 text-xs">{errors.consent.message}</p>}
 
-              <button 
-                type="submit" 
-                disabled={isLoading} 
-                className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Send Verification Code'}
-              </button>
+              <div className="flex gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setStep('REVIEW')}
+                    className="px-4 py-2.5 text-sm font-bold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="flex-1 bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Send Verification Code'}
+                  </button>
+              </div>
             </form>
           )}
 
-          {/* Step 2 (OTP) remains unchanged... */}
+          {/* STEP 3: OTP ENTRY */}
           {step === 'OTP' && (
             <div className="space-y-4">
               <div className="text-center">
