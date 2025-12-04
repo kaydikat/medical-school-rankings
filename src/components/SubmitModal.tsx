@@ -35,8 +35,8 @@ interface SubmitModalProps {
 }
 
 export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalProps) {
-  // Updated State: Now includes 'REVIEW' step
-  const [step, setStep] = useState<'REVIEW' | 'FORM' | 'OTP'>('REVIEW');
+  // Updated State: Includes 'SUCCESS' step
+  const [step, setStep] = useState<'REVIEW' | 'FORM' | 'OTP' | 'SUCCESS'>('REVIEW');
   const [emailForOtp, setEmailForOtp] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +86,6 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
 
       if (session?.user?.email === data.email) {
          console.log("User already verified.");
-         setMessage({ text: 'You are already verified! Saving now...', type: 'success' });
          await saveData(data);
          return;
       }
@@ -143,33 +142,41 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
 
     if (error) throw error;
 
-    setMessage({ text: 'Success! Rankings saved.', type: 'success' });
+    // Transition to SUCCESS state instead of closing immediately
+    setStep('SUCCESS');
+    setIsLoading(false);
+    
+    // Auto-close after a few seconds (optional, but good UX)
     setTimeout(() => {
-      reset();
-      setStep('REVIEW'); // Reset to first step
-      setOtpCode('');
-      setMessage(null);
-      onClose();
-      setIsLoading(false);
-    }, 1500);
+      handleClose();
+    }, 3000);
+  };
+
+  const handleClose = () => {
+    reset();
+    setStep('REVIEW'); 
+    setOtpCode('');
+    setMessage(null);
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden border border-gray-100" 
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* Header */}
         <div className="bg-slate-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-none">
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-emerald-600" />
-            {step === 'REVIEW' ? 'Review Contribution' : step === 'FORM' ? 'Contribute Rankings' : 'Verify Email'}
+            {step === 'REVIEW' ? 'Review Contribution' : step === 'FORM' ? 'Submit your Weights' : step === 'SUCCESS' ? 'Success!' : 'Verify Email'}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <XCircle className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Scrollable Content Area */}
         <div className="p-6 overflow-y-auto">
           
           {/* STEP 1: REVIEW WEIGHTS */}
@@ -195,7 +202,7 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
 
               <div className="flex gap-3">
                 <button 
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                     Adjust Weights
@@ -245,13 +252,12 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
                 </div>
               </div>
 
-              {/* NEW: Research Consent Checkbox */}
-              <div className="flex items-start gap-2 pt-2">
+              <div className="flex items-start gap-2 pt-2 bg-slate-50 p-3 rounded-md border border-slate-100">
                 <input 
                   type="checkbox" 
                   id="consent"
                   {...register('consent')}
-                  className="mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+                  className="mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer shrink-0"
                 />
                 <label htmlFor="consent" className="text-xs text-slate-600 cursor-pointer leading-tight">
                   I agree to contribute my de-identified submission data for inclusion in the public dataset. I understand this data may be used for general academic research purposes.
@@ -313,7 +319,29 @@ export default function SubmitModal({ isOpen, onClose, weights }: SubmitModalPro
             </div>
           )}
 
-          {message && (
+          {/* STEP 4: SUCCESS */}
+          {step === 'SUCCESS' && (
+            <div className="py-8 text-center animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <UploadCloud className="w-8 h-8" />
+              </div>
+              <h4 className="text-2xl font-bold text-slate-800 mb-2">Thank You!</h4>
+              <p className="text-slate-600">
+                Your contribution has been verified and added to the public dataset.
+              </p>
+              <div className="mt-6">
+                 <button 
+                    onClick={handleClose}
+                    className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-colors"
+                 >
+                    Close
+                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Messages (Only show if NOT in success state to keep UI clean) */}
+          {message && step !== 'SUCCESS' && (
             <div className={`mt-4 p-3 rounded text-sm font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               {message.text}
             </div>
