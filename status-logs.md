@@ -18,4 +18,5 @@
 |11/22/2025 | Add verification ui | 1 |
 |11/22/2025 | Test and Deploy on Vercel | 2 |
 |11/23/2025 | Market to NYU med students | .5 |
-| **Total**  |                          | **32.5** |
+|12/03/2025 | More UI improvements | 3 |
+| **Total**  |                          | **35.5** |
