@@ -319,10 +319,6 @@ function CalculateContent() {
                                 <p className="text-sm text-slate-500">Adjust priorities to generate your own personalized list.</p>
                             </div>
                             <div className="flex items-center gap-4 flex-wrap">
-                                <div className={`text-sm font-bold px-4 py-1.5 rounded-full border ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
-                                    Total Weight: {totalWeight}%
-                                </div>
-                                
                                 <button 
                                     onClick={() => setIsSubmitModalOpen(true)} 
                                     className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-full flex items-center gap-2 font-bold shadow-lg transition-all transform hover:scale-105 ring-2 ring-emerald-500 ring-offset-2"
@@ -330,6 +326,10 @@ function CalculateContent() {
                                     <UploadCloud className="w-5 h-5" /> 
                                     <span>Contribute Preferences to Leaderboard</span>
                                 </button>
+
+                                <div className={`text-sm font-bold px-4 py-1.5 rounded-full border ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                    Total Weight: {totalWeight}%
+                                </div>
 
                                 <div className="hidden md:flex items-center gap-4">
                                     <button onClick={handleRescale} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
