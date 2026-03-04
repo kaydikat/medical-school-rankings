@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ROLE_DB_TO_UI } from '@/lib/roleMap';
 import type { Weights } from '@/lib/calculateRanks';
+import cachedAgg from '@/data/cached_aggregates.json';
 
 type Aggregate = {
   role: string;
@@ -12,7 +13,7 @@ type Aggregate = {
 };
 
 export function useAggregates() {
-  const [aggregates, setAggregates] = useState<Aggregate[]>([]);
+  const [aggregates, setAggregates] = useState<Aggregate[]>([cachedAgg as Aggregate]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
