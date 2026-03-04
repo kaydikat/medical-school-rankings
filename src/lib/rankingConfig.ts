@@ -1,4 +1,4 @@
-// src/lib/rankingConfig.ts
+import cachedAgg from '@/data/cached_aggregates.json';
 
 export const CATEGORY_CONFIG = [
   {
@@ -46,15 +46,6 @@ export const CATEGORY_CONFIG = [
 ];
 
 export const DEFAULT_WEIGHTS: Record<string, number> = {
-  'Average GPA': 20,
-  'Average MCAT': 20,
-  'NIH Research Funding': 15,
-  'NIH Research Funding per Faculty': 10,
-  'Average Graduate Indebtedness': 10,
-  'Total Cost of Attendance': 10,
-  'Tuition and Fees': 5,
-  '#n_ranked_specialties': 5,
-  '#n_top10_specialties': 5,
-  'URM%': 0,
+  ...cachedAgg.weights,
   'Class Size': 0
 };

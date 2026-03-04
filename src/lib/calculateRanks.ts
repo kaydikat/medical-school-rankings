@@ -1,5 +1,6 @@
 // src/lib/calculateRanks.ts
 import type { School } from '@/types/school';
+import { DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 
 const INVERSE_SCORE_COLS = ['Average Graduate Indebtedness', 'Tuition and Fees', 'Total Cost of Attendance'];
 
@@ -17,19 +18,6 @@ const RANKING_COLS = [
 ] as const;
 
 export type Weights = Record<typeof RANKING_COLS[number], number>;
-
-export const DEFAULT_WEIGHTS: Weights = {
-  'Average GPA': 14,
-  'Average MCAT': 20,
-  'Average Graduate Indebtedness': 10,
-  'Total Cost of Attendance': 10,
-  'Tuition and Fees': 5,
-  'NIH Research Funding': 15,
-  'NIH Research Funding per Faculty': 10,
-  '#n_ranked_specialties': 5,
-  '#n_top10_specialties': 5,
-  'URM%': 0
-};
 
 export function rescaleWeights(weights: Record<string, number>): Record<string, number> {
   const total = Object.values(weights).reduce((a, b) => a + b, 0);
