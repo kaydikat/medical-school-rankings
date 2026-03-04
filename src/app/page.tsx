@@ -6,7 +6,7 @@ import schoolsData from '@/data/final_medical_school_data.json';
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
 import { useAggregates } from '@/lib/useAggregates';
 import RankingsTable from '@/components/RankingsTable';
-import { GraduationCap, SlidersIcon, Search, Menu, X } from '@/components/Icons';
+import { GraduationCap, SlidersIcon, Search, Menu, X, UploadCloud } from '@/components/Icons';
 
 // Helper: Calculate Scores based on weights
 const calculateRanking = (weights: Record<string, number>) => {
@@ -303,6 +303,15 @@ export default function HomePage() {
               onRoleSelect={setSelectedRole}
               currentWeights={currentWeights}
               submissionCount={submissionCount}
+              extraControls={
+                <Link 
+                  href="/calculate?open=true&instruction=true"
+                  className="text-xs font-bold px-3 py-1.5 rounded-md border flex items-center gap-2 transition-all shadow-sm bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 hover:border-emerald-700"
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  Contribute your own preferences
+                </Link>
+              }
           />
         </div>
       </div>

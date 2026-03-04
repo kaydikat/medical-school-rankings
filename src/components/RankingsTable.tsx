@@ -34,6 +34,7 @@ interface RankingsTableProps {
   onRoleSelect?: (role: string) => void;
   currentWeights?: Record<string, number>;
   submissionCount?: number;
+  extraControls?: React.ReactNode;
 }
 
 export default function RankingsTable({ 
@@ -44,7 +45,8 @@ export default function RankingsTable({
   selectedRole = 'overall', 
   onRoleSelect,
   currentWeights,
-  submissionCount = 0
+  submissionCount = 0,
+  extraControls
 }: RankingsTableProps) {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'CustomRank', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -157,6 +159,9 @@ export default function RankingsTable({
                 Methodology
                 {showMethodology ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
+
+            {/* Extra Controls */}
+            {extraControls}
          </div>
       </div>
 

@@ -25,11 +25,13 @@ const CATEGORY_STYLES: Record<string, string> = {
 function CalculateContent() {
     const searchParams = useSearchParams();
     const openParam = searchParams.get('open');
+    const instructionParam = searchParams.get('instruction');
     
     const [weights, setWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
     const [searchTerm, setSearchTerm] = useState('');
     const [showRankingsPanel, setShowRankingsPanel] = useState(openParam === 'true');
     const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(instructionParam === 'true');
     const [isInState, setIsInState] = useState(false);
     
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -334,8 +336,12 @@ function CalculateContent() {
                                     Total Weight: {totalWeight}%
                                 </div>
                                 
-                                <button onClick={() => setIsSubmitModalOpen(true)} className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-1 font-medium shadow-sm transition-colors">
-                                    <UploadCloud className="w-4 h-4 md:w-3 md:h-3" /> <span className="hidden md:inline">Contribute</span><span className="md:hidden">Contribute</span>
+                                <button 
+                                    onClick={() => setIsSubmitModalOpen(true)} 
+                                    className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-full flex items-center gap-2 font-bold shadow-lg transition-all transform hover:scale-105 ring-2 ring-emerald-500 ring-offset-2"
+                                >
+                                    <UploadCloud className="w-5 h-5" /> 
+                                    <span>Contribute Preferences to Leaderboard</span>
                                 </button>
 
                                 <div className="hidden md:flex items-center gap-4">
@@ -474,6 +480,42 @@ function CalculateContent() {
                 onClose={() => setIsSubmitModalOpen(false)} 
                 weights={weights} 
             />
+
+            {/* INSTRUCTION MODAL */}
+            {isInstructionModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-gray-100 relative text-center">
+                        <button 
+                            onClick={() => setIsInstructionModalOpen(false)} 
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <XCircle className="w-6 h-6" />
+                        </button>
+                        
+                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <SlidersIcon className="w-10 h-10" />
+                        </div>
+                        
+                        <h3 className="text-2xl font-bold text-slate-800 mb-3">Create Your Rankings</h3>
+                        
+                        <div className="space-y-4 text-slate-600 mb-8">
+                            <p className="leading-relaxed">
+                                Use the <b>sliders</b> to adjust the weights of various factors based on what matters most to you in a medical school.
+                            </p>
+                            <p className="leading-relaxed">
+                                Once you've customized your list, click the <b>"Contribute"</b> button to add your priorities to the community leaderboard!
+                            </p>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setIsInstructionModalOpen(false)}
+                            className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            Start Customizing
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
