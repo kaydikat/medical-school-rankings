@@ -132,7 +132,7 @@ export default function RankingsTable({
                     <select 
                         value={selectedRole} 
                         onChange={(e) => onRoleSelect(e.target.value)}
-                        className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-md hover:border-blue-400 hover:text-blue-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-sm max-w-[200px] md:max-w-none truncate"
+                        className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-md hover:border-blue-400 hover:text-blue-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-sm w-full min-w-[140px] md:min-w-[200px] max-w-[220px] md:max-w-none truncate"
                     >
                         {availableRoles.map(agg => (
                             <option key={agg.role} value={agg.role}>
