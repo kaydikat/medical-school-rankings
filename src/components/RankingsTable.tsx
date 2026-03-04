@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { CATEGORY_CONFIG } from '@/lib/rankingConfig';
+import { rescaleWeights } from '@/lib/calculateRanks';
 import { ArrowUpDown, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info } from '@/components/Icons';
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -119,6 +120,11 @@ export default function RankingsTable({
   // Also create a "currentRoleLabel" for the methodology header if you want shortened name there too
   const methodologyRoleLabel = isMobile && MOBILE_ROLE_NAMES[roleLabel] ? MOBILE_ROLE_NAMES[roleLabel] : roleLabel;
 
+  const displayedWeights = useMemo(() => {
+    if (!currentWeights) return null;
+    return rescaleWeights(currentWeights);
+  }, [currentWeights]);
+
   return (
     <div className="flex flex-col h-full gap-3">
       
@@ -166,7 +172,7 @@ export default function RankingsTable({
       </div>
 
       {/* 2. METHODOLOGY PANEL (Formatted & Ordered) */}
-      {showMethodology && currentWeights && (
+      {showMethodology && displayedWeights && (
         <div className="bg-white border border-blue-100 rounded-xl p-5 shadow-sm animate-in slide-in-from-top-2 relative">
             <button onClick={() => setShowMethodology(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
                 <ChevronUp className="w-4 h-4" />
@@ -186,14 +192,14 @@ export default function RankingsTable({
                 <div className="flex flex-wrap gap-3">
                     {CATEGORY_CONFIG.flatMap(group => 
                         group.factors
-                            .filter(f => currentWeights[f.key] > 0) // Only show active weights
+                            .filter(f => displayedWeights[f.key] > 0) // Only show active weights
                             .map(factor => (
                                 <div key={factor.key} className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                                     <span className="text-[10px] font-medium text-slate-500 uppercase tracking-tight">
                                         {factor.label}
                                     </span>
                                     <span className="text-xs font-bold text-slate-800">
-                                        {currentWeights[factor.key]}%
+                                        {displayedWeights[factor.key]}%
                                     </span>
                                 </div>
                             ))

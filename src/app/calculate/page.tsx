@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; 
 import schoolsData from '@/data/final_medical_school_data.json';
 import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
+import { rescaleWeights } from '@/lib/calculateRanks';
 import RankingsTable from '@/components/RankingsTable';
 import SubmitModal from '@/components/SubmitModal';
 import { 
@@ -203,22 +204,8 @@ function CalculateContent() {
         setShowDownloadMenu(false);
     };
 
-    const rescaleWeights = () => {
-        const total = Object.values(weights).reduce((a, b) => a + b, 0);
-        if (total === 0) return;
-        const newWeights: Record<string, number> = {};
-        let currentTotal = 0;
-        Object.keys(weights).forEach(key => {
-            const val = Math.round((weights[key] / total) * 100);
-            newWeights[key] = val;
-            currentTotal += val;
-        });
-        const diff = 100 - currentTotal;
-        if (diff !== 0) {
-            const maxKey = Object.keys(newWeights).reduce((a, b) => newWeights[a] > newWeights[b] ? a : b);
-            newWeights[maxKey] += diff;
-        }
-        setWeights(newWeights);
+    const handleRescale = () => {
+        setWeights(rescaleWeights(weights));
     };
 
     const setWeightsToZero = () => {
@@ -345,7 +332,7 @@ function CalculateContent() {
                                 </button>
 
                                 <div className="hidden md:flex items-center gap-4">
-                                    <button onClick={rescaleWeights} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                                    <button onClick={handleRescale} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
                                         <Percent className="w-3 h-3" /> Rescale to 100%
                                     </button>
 
@@ -369,7 +356,7 @@ function CalculateContent() {
                                     {showDownloadMenu && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-100">
                                             <div className="py-1">
-                                                 <button onClick={rescaleWeights} className="md:hidden w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
+                                                 <button onClick={handleRescale} className="md:hidden w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
                                                     <Percent className="w-4 h-4" /> Rescale 100%
                                                 </button>
                                                 <button onClick={setWeightsToZero} className="md:hidden w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2">

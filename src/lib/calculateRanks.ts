@@ -31,6 +31,29 @@ export const DEFAULT_WEIGHTS: Weights = {
   'URM%': 0
 };
 
+export function rescaleWeights(weights: Record<string, number>): Record<string, number> {
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  if (total === 0) return weights;
+  
+  const newWeights: Record<string, number> = {};
+  let currentTotal = 0;
+  
+  const keys = Object.keys(weights);
+  keys.forEach(key => {
+    const val = Math.round((weights[key] / total) * 100);
+    newWeights[key] = val;
+    currentTotal += val;
+  });
+  
+  const diff = 100 - currentTotal;
+  if (diff !== 0 && keys.length > 0) {
+    const maxKey = keys.reduce((a, b) => newWeights[a] > newWeights[b] ? a : b);
+    newWeights[maxKey] += diff;
+  }
+  
+  return newWeights;
+}
+
 export function calculateRanks(data: School[], weights: Weights): School[] {
   const proc = JSON.parse(JSON.stringify(data));
 
