@@ -5,13 +5,13 @@ import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; 
 import schoolsData from '@/data/final_medical_school_data.json';
-import { CATEGORY_CONFIG, DEFAULT_WEIGHTS } from '@/lib/rankingConfig';
+import { CATEGORY_CONFIG, DEFAULT_WEIGHTS, encodeWeights, decodeWeights } from '@/lib/rankingConfig';
 import { rescaleWeights } from '@/lib/calculateRanks';
 import RankingsTable from '@/components/RankingsTable';
 import SubmitModal from '@/components/SubmitModal';
 import { 
   GraduationCap, Search, SlidersIcon, Save, Percent, 
-  XCircle, RefreshCw, UploadCloud, Info, MoreHorizontal, FileText, Upload, Menu, X, ChevronUp, ChevronDown 
+  XCircle, RefreshCw, UploadCloud, Info, MoreHorizontal, FileText, Upload, Menu, X, ChevronUp, ChevronDown, Share, Copy, Check 
 } from '@/components/Icons';
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -22,16 +22,95 @@ const CATEGORY_STYLES: Record<string, string> = {
   'Student Body': 'bg-pink-50 text-pink-800 border-pink-200',
 };
 
+// Internal ShareModal Component
+function ShareModal({ isOpen, onClose, weights }: { isOpen: boolean, onClose: () => void, weights: Record<string, number> }) {
+  const [copied, setCopied] = React.useState(false);
+  
+  if (!isOpen) return null;
+
+  const getShareUrl = () => {
+    if (typeof window === 'undefined') return '';
+    const encoded = encodeWeights(weights);
+    const url = new URL(window.location.href);
+    url.searchParams.set('w', encoded);
+    url.searchParams.set('open', 'true'); // Automatically open customize panel
+    return url.toString();
+  };
+
+  const shareUrl = getShareUrl();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 md:p-8 border border-gray-100 relative">
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+        
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+            <Share className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">Share Scheme</h3>
+            <p className="text-sm text-slate-500">Copy this URL to share your custom weighting scheme.</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <input 
+              readOnly 
+              value={shareUrl}
+              className="w-full pr-12 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 truncate"
+            />
+            <button 
+              onClick={handleCopy}
+              className={`absolute right-2 top-1.5 p-2 rounded-lg transition-colors ${copied ? 'text-emerald-600' : 'text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm'}`}
+              title="Copy to clipboard"
+            >
+              {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-400 italic">
+            Anyone with this link can view the rankings exactly as you've configured them.
+          </p>
+        </div>
+
+        <div className="mt-8">
+          <button 
+            onClick={onClose}
+            className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors shadow-lg"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Internal Component using hooks (must be wrapped in Suspense)
 function CalculateContent() {
     const searchParams = useSearchParams();
     const openParam = searchParams.get('open');
     const instructionParam = searchParams.get('instruction');
+    const wParam = searchParams.get('w');
     
     const [weights, setWeights] = useState<Record<string, number>>(DEFAULT_WEIGHTS);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showRankingsPanel, setShowRankingsPanel] = useState(openParam === 'true');
+    const [showRankingsPanel, setShowRankingsPanel] = useState(openParam === 'true' || !!wParam);
     const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isInstructionModalOpen, setIsInstructionModalOpen] = useState(instructionParam === 'true');
     const [isInState, setIsInState] = useState(false);
     
@@ -39,6 +118,18 @@ function CalculateContent() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Load weights from URL if present
+    useEffect(() => {
+        if (wParam) {
+            try {
+                const decoded = decodeWeights(wParam);
+                setWeights(decoded);
+            } catch (e) {
+                console.error("Failed to decode weights from URL", e);
+            }
+        }
+    }, [wParam]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -320,6 +411,15 @@ function CalculateContent() {
                             </div>
                             <div className="flex items-center gap-4 flex-wrap">
                                 <button 
+                                    onClick={() => setIsShareModalOpen(true)} 
+                                    className="text-sm text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-full flex items-center gap-2 font-bold shadow-md transition-all transform hover:scale-105"
+                                    title="Share this scheme via URL"
+                                >
+                                    <Share className="w-5 h-5 text-blue-600" /> 
+                                    <span>Share Scheme</span>
+                                </button>
+
+                                <button 
                                     onClick={() => setIsSubmitModalOpen(true)} 
                                     className="text-sm text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-full flex items-center gap-2 font-bold shadow-lg transition-all transform hover:scale-105 ring-2 ring-emerald-500 ring-offset-2"
                                 >
@@ -365,8 +465,11 @@ function CalculateContent() {
                                                 <button onClick={() => setWeights(DEFAULT_WEIGHTS)} className="md:hidden w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                                     <RefreshCw className="w-4 h-4" /> Reset
                                                 </button>
-                                                <div className="h-px bg-gray-100 md:hidden my-1"></div>
-
+                                                <button onClick={() => { setIsShareModalOpen(true); setShowDownloadMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
+                                                    <Share className="w-4 h-4" /> Share Scheme URL
+                                                </button>
+                                                <div className="h-px bg-gray-100 my-1"></div>
+                                                
                                                 <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                                                 <button onClick={handleDownloadRankings} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 flex items-center gap-2">
                                                     <FileText className="w-4 h-4" /> Download Rankings
@@ -465,6 +568,12 @@ function CalculateContent() {
             <SubmitModal 
                 isOpen={isSubmitModalOpen} 
                 onClose={() => setIsSubmitModalOpen(false)} 
+                weights={weights} 
+            />
+
+            <ShareModal 
+                isOpen={isShareModalOpen} 
+                onClose={() => setIsShareModalOpen(false)} 
                 weights={weights} 
             />
 

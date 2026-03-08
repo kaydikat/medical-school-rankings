@@ -31,3 +31,6 @@ export const EyeOff = (p: any) => (<IconBase {...p}><path d="M9.88 9.88a3 3 0 1 
 // NEW ICONS
 export const Menu = (p: any) => (<IconBase {...p}><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></IconBase>);
 export const X = (p: any) => (<IconBase {...p}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></IconBase>);
+export const Share = (p: any) => (<IconBase {...p}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></IconBase>);
+export const Copy = (p: any) => (<IconBase {...p}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></IconBase>);
+export const Check = (p: any) => (<IconBase {...p}><polyline points="20 6 9 17 4 12"/></IconBase>);
