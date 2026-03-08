@@ -60,8 +60,8 @@ function ShareModal({ isOpen, onClose, weights }: { isOpen: boolean, onClose: ()
             <Share className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-800">Share Scheme</h3>
-            <p className="text-sm text-slate-500">Copy this URL to share your custom weighting scheme.</p>
+            <h3 className="text-xl font-bold text-slate-800">Share weighting</h3>
+            <p className="text-sm text-slate-500">Copy this URL to share your custom weighting weighting.</p>
           </div>
         </div>
 
@@ -413,10 +413,10 @@ function CalculateContent() {
                                 <button 
                                     onClick={() => setIsShareModalOpen(true)} 
                                     className="text-sm text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 px-4 py-2.5 rounded-full flex items-center gap-2 font-bold shadow-md transition-all transform hover:scale-105"
-                                    title="Share this scheme via URL"
+                                    title="Share this weighting via URL"
                                 >
                                     <Share className="w-5 h-5 text-blue-600" /> 
-                                    <span>Share Scheme</span>
+                                    <span>Share</span>
                                 </button>
 
                                 <button 
@@ -466,7 +466,7 @@ function CalculateContent() {
                                                     <RefreshCw className="w-4 h-4" /> Reset
                                                 </button>
                                                 <button onClick={() => { setIsShareModalOpen(true); setShowDownloadMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
-                                                    <Share className="w-4 h-4" /> Share Scheme URL
+                                                    <Share className="w-4 h-4" /> Share weighting URL
                                                 </button>
                                                 <div className="h-px bg-gray-100 my-1"></div>
                                                 
